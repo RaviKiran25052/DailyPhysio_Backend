@@ -6,13 +6,16 @@ const {
   getExerciseById, 
   createExercise,
   updateExercise,
-  deleteExercise
+  deleteExercise,
+  getFeaturedExercises
 } = require('../controllers/exerciseController');
 
 // Setup routes
-router.route('/')
+router.route('/all')
   .get(getExercises)
-  .post(protect, createExercise);
+
+router.route('/featured')
+  .get(getFeaturedExercises)
 
 router.route('/:id')
   .get(getExerciseById)

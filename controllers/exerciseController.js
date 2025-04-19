@@ -1,6 +1,51 @@
 const asyncHandler = require('express-async-handler');
 const Exercise = require('../models/exerciseModel');
 
+
+// @desc    Get one sample exercise from each category
+// @route   GET /api/exercises/samples
+// @access  Public/Private (depends on premium content)
+const getFeaturedExercises = asyncHandler(async (req, res) => {
+  // If user is not pro, filter out premium exercises
+  const premiumFilter = req.user && req.user.pro && req.user.pro.type 
+    ? {} 
+    : { isPremium: false };
+  
+  // Get all available categories
+  const categories = [
+    'Ankle and Foot',
+    'Cervical',
+    'Education',
+    'Elbow and Hand',
+    'Hip and Knee',
+    'Lumbar Thoracic',
+    'Oral Motor',
+    'Shoulder',
+    'Special'
+  ];
+  
+  // Use aggregation to get one exercise from each category
+  const sampleExercises = await Promise.all(
+    categories.map(async (category) => {
+      // Find one exercise from current category that matches premium filter
+      const exercise = await Exercise.findOne({
+        category: category,
+        ...premiumFilter
+      });
+      
+      return exercise;
+    })
+  );
+  
+  // Filter out any null results (in case a category has no exercises that match filters)
+  const validExercises = sampleExercises.filter(exercise => exercise !== null);
+  
+  res.json({
+    exercises: validExercises,
+    total: validExercises.length
+  });
+});
+
 // @desc    Get all exercises
 // @route   GET /api/exercises
 // @access  Public
@@ -165,6 +210,7 @@ const deleteExercise = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getFeaturedExercises,
   getExercises,
   getExerciseById,
   createExercise,

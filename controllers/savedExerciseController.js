@@ -33,9 +33,51 @@ const saveExercise = asyncHandler(async (req, res) => {
   }
   
   // Check if exercise is premium and user is not pro
-  if (exercise.isPremium && (!req.user.pro || !req.user.pro.type)) {
+  if (exercise.isPremium && !req.user.pro.type) {
     res.status(403);
     throw new Error('This is a premium exercise. Upgrade to pro to save it.');
+  }
+  
+  // Subscription validation logic
+  const currentDate = new Date();
+  
+  if (!req.user.pro.type) {
+    // Free user - check if they've already saved 3 exercises
+    const savedCount = await SavedExercise.countDocuments({ userId: req.user._id });
+    if (savedCount >= 3) {
+      res.status(403);
+      throw new Error('Free users can only save up to 3 exercises. Upgrade to pro for unlimited saves.');
+    }
+  } else if (req.user.pro.type === 'monthly') {
+    // Monthly subscriber - check if subscription is still valid (less than 30 days since payment)
+    if (req.user.pro.paymentDate) {
+      const paymentDate = new Date(req.user.pro.paymentDate);
+      const diffTime = Math.abs(currentDate - paymentDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 30) {
+        res.status(403);
+        throw new Error('Your monthly subscription has expired. Please renew to continue saving exercises.');
+      }
+    } else {
+      res.status(403);
+      throw new Error('Payment information missing. Please contact support.');
+    }
+  } else if (req.user.pro.type === 'yearly') {
+    // Yearly subscriber - check if subscription is still valid (less than 365 days since payment)
+    if (req.user.pro.paymentDate) {
+      const paymentDate = new Date(req.user.pro.paymentDate);
+      const diffTime = Math.abs(currentDate - paymentDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 365) {
+        res.status(403);
+        throw new Error('Your yearly subscription has expired. Please renew to continue saving exercises.');
+      }
+    } else {
+      res.status(403);
+      throw new Error('Payment information missing. Please contact support.');
+    }
   }
   
   // Check if exercise is already saved by this user
