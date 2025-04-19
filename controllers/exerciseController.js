@@ -91,6 +91,83 @@ const getExercises = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get exercises by category with filtering and pagination
+// @route   GET /api/exercises/category/:category
+// @access  Public/Private (depending on premium content)
+
+const getExercisesByCategory = asyncHandler(async (req, res) => {
+  const category = req.params.category;
+  const pageSize = Number(req.query.pageSize) || 10;
+  const page = Number(req.query.page) || 1;
+
+  // Validate category
+  const validCategories = [
+    'Ankle and Foot',
+    'Cervical',
+    'Education',
+    'Elbow and Hand',
+    'Hip and Knee',
+    'Lumbar Thoracic',
+    'Oral Motor',
+    'Shoulder',
+    'Special'
+  ];
+
+  if (!validCategories.includes(category)) {
+    res.status(400);
+    throw new Error('Invalid category');
+  }
+
+  // Build the query
+  const query = { category };
+
+  // Optional subCategory filter
+  if (req.query.subCategory) {
+    query.subCategory = req.query.subCategory;
+  }
+
+  // Optional position filter
+  if (req.query.position) {
+    query.position = req.query.position;
+  }
+
+  // Filter out premium content for non-pro users
+  const premiumFilter = req.user && req.user.pro && req.user.pro.type ? {} : { isPremium: false };
+
+  // Combine filters
+  const finalQuery = {
+    ...query,
+    ...premiumFilter
+  };
+
+  // Add search query if provided
+  if (req.query.search) {
+    finalQuery.$or = [
+      { title: { $regex: req.query.search, $options: 'i' } },
+      { description: { $regex: req.query.search, $options: 'i' } }
+    ];
+  }
+
+  // Count the total number of matching exercises
+  const count = await Exercise.countDocuments(finalQuery);
+
+  // Fetch the exercises with pagination
+  const exercises = await Exercise.find(finalQuery)
+    .sort({ createdAt: -1 }) // Sort by newest first
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
+
+  // Return the exercises with pagination info
+  res.json({
+    exercises,
+    page,
+    pages: Math.ceil(count / pageSize),
+    total: count,
+    category,
+    hasMore: page * pageSize < count
+  });
+});
+
 // @desc    Get exercise by ID
 // @route   GET /api/exercises/:id
 // @access  Public/Private (Premium exercises require pro subscription)
@@ -211,6 +288,7 @@ const deleteExercise = asyncHandler(async (req, res) => {
 
 module.exports = {
   getFeaturedExercises,
+  getExercisesByCategory,
   getExercises,
   getExerciseById,
   createExercise,
