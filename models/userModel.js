@@ -27,6 +27,11 @@ const userSchema = mongoose.Schema(
         default: null,
       },
     },
+    role:{
+      type:String,
+      enum:["isAdmin","isUser","isTherapist"],
+      default:"isUser"
+    },
   },
   {
     timestamps: true,
