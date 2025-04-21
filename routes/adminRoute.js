@@ -1,8 +1,12 @@
 const express = require('express')
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
-const adminLogin = require('../controllers/adminController')
+const { protect, isAdmin } = require('../middleware/authMiddleware');
+const { loginAdmin } = require('../controllers/adminController')
 
-router.post('/loginAdmin', adminLogin)
+// Public route for admin login
+router.post('/login', loginAdmin);
+
+// Protected admin routes can be added here
+// Example: router.get('/dashboard', protect, isAdmin, getDashboardStats);
 
 module.exports = router

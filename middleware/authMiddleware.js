@@ -39,4 +39,13 @@ const isPro = (req, res, next) => {
   }
 };
 
-module.exports = { protect, isPro }; 
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'isAdmin') {
+    next();
+  } else {
+    res.status(401);
+    throw new Error('Not authorized as an admin');
+  }
+};
+
+module.exports = { protect, isPro, isAdmin }; 

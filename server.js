@@ -8,6 +8,7 @@ const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const userRoutes = require('./routes/userRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
 const savedExerciseRoutes = require('./routes/savedExerciseRoutes');
+const adminRoutes = require('./routes/adminRoute');
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use('/hep2go/users', userRoutes);
 app.use('/hep2go/exercises', exerciseRoutes);
 app.use('/hep2go/saved-exercises', savedExerciseRoutes);
+app.use('/hep2go/admin', adminRoutes);
 
 // Base route
 app.get('/', (req, res) => {
