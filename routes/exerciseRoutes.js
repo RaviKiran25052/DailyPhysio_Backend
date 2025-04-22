@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isPro, isAdmin } = require('../middleware/authMiddleware');
-const { 
-  getExercises, 
+const { protect, isAdmin } = require('../middleware/authMiddleware');
+const {
+  getExercises,
+  getAllExercises,
   getExerciseById,
   createExercise,
   updateExercise,
@@ -13,9 +14,10 @@ const {
 
 // Setup routes
 router.route('/all')
-  .get(getExercises)
+  .get(getAllExercises)
 
 router.route('/')
+  .get(protect, isAdmin, getExercises)
   .post(protect, isAdmin, createExercise);
 
 router.route('/category/:category')

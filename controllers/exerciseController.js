@@ -1,6 +1,5 @@
 const asyncHandler = require('express-async-handler');
 const Exercise = require('../models/exerciseModel');
-const { isAdmin } = require('../middleware/authMiddleware');
 
 
 // @desc    Get one sample exercise from each category
@@ -8,10 +7,10 @@ const { isAdmin } = require('../middleware/authMiddleware');
 // @access  Public/Private (depends on premium content)
 const getFeaturedExercises = asyncHandler(async (req, res) => {
   // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type 
-    ? {} 
+  const premiumFilter = req.user && req.user.pro && req.user.pro.type
+    ? {}
     : { isPremium: false };
-  
+
   // Get all available categories
   const categories = [
     'Ankle and Foot',
@@ -24,7 +23,7 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
     'Shoulder',
     'Special'
   ];
-  
+
   // Use aggregation to get one exercise from each category
   const sampleExercises = await Promise.all(
     categories.map(async (category) => {
@@ -33,61 +32,83 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
         category: category,
         ...premiumFilter
       });
-      
+
       return exercise;
     })
   );
-  
+
   // Filter out any null results (in case a category has no exercises that match filters)
   const validExercises = sampleExercises.filter(exercise => exercise !== null);
-  
+
   res.json({
     exercises: validExercises,
     total: validExercises.length
   });
 });
 
-// @desc    Get all exercises
-// @route   GET /exercises
-// @access  Public
+// @desc    Get exercises with pagination and filtering
+// @route   GET /api/exercises/?pageNumber=1&keyword=example&category=Ankle%20and%20Foot
+// @access  Protected (if premium content)
 const getExercises = asyncHandler(async (req, res) => {
   const pageSize = 9;
   const page = Number(req.query.pageNumber) || 1;
-  
+  console.log(req.query);
+
   const keyword = req.query.keyword
     ? {
-        title: {
-          $regex: req.query.keyword,
-          $options: 'i',
-        },
-      }
+      title: {
+        $regex: req.query.keyword,
+        $options: 'i',
+      },
+    }
     : {};
 
   const category = req.query.category ? { category: req.query.category } : {};
-  
-  // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.role === "isAdmin" 
-    ? {isPremium: true} 
-    : {};
-  
-  const count = await Exercise.countDocuments({ 
-    ...keyword, 
+  const isPremium = req.query.isPremium ? { isPremium: req.query.isPremium } : {};
+  const isCustom = req.query.isCustom ? { isCustom: req.query.isCustom } : {};
+
+  const count = await Exercise.countDocuments({
+    ...keyword,
     ...category,
-    ...premiumFilter,
+    ...isPremium,
+    ...isCustom
   });
-  
-  const exercises = await Exercise.find({ 
-    ...keyword, 
+
+  const exercises = await Exercise.find({
+    ...keyword,
     ...category,
-    ...premiumFilter 
+    ...isPremium,
+    ...isCustom
   })
     .limit(pageSize)
     .skip(pageSize * (page - 1));
+
   res.json({
     exercises,
     page,
     pages: Math.ceil(count / pageSize),
     total: count
+  });
+});
+
+// @desc    Get all exercises
+// @route   GET /exercises/all
+// @access  Public
+const getAllExercises = asyncHandler(async (req, res) => {
+
+  const category = req.query.category ? { category: req.query.category } : {};
+
+  // If user is not pro, filter out premium exercises
+  const premiumFilter = req.user && req.user.pro && req.user.pro.type
+    ? {}
+    : { isPremium: false };
+
+  const exercises = await Exercise.find({
+    ...category,
+    ...premiumFilter
+  })
+  res.json({
+    exercises
   });
 });
 
@@ -298,9 +319,10 @@ const deleteExercise = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getExercises,
+  getAllExercises,
   getFeaturedExercises,
   getExercisesByCategory,
-  getExercises,
   getExerciseById,
   createExercise,
   updateExercise,
