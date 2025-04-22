@@ -1,9 +1,10 @@
 const asyncHandler = require('express-async-handler');
 const Exercise = require('../models/exerciseModel');
+const { isAdmin } = require('../middleware/authMiddleware');
 
 
 // @desc    Get one sample exercise from each category
-// @route   GET /api/exercises/samples
+// @route   GET /exercises/samples
 // @access  Public/Private (depends on premium content)
 const getFeaturedExercises = asyncHandler(async (req, res) => {
   // If user is not pro, filter out premium exercises
@@ -47,10 +48,10 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get all exercises
-// @route   GET /api/exercises
+// @route   GET /exercises
 // @access  Public
 const getExercises = asyncHandler(async (req, res) => {
-  const pageSize = 10;
+  const pageSize = 9;
   const page = Number(req.query.pageNumber) || 1;
   
   const keyword = req.query.keyword
@@ -65,14 +66,14 @@ const getExercises = asyncHandler(async (req, res) => {
   const category = req.query.category ? { category: req.query.category } : {};
   
   // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type 
-    ? {} 
-    : { isPremium: false };
+  const premiumFilter = req.user && req.user.role === "isAdmin" 
+    ? {isPremium: true} 
+    : {};
   
   const count = await Exercise.countDocuments({ 
     ...keyword, 
     ...category,
-    ...premiumFilter
+    ...premiumFilter,
   });
   
   const exercises = await Exercise.find({ 
@@ -82,7 +83,6 @@ const getExercises = asyncHandler(async (req, res) => {
   })
     .limit(pageSize)
     .skip(pageSize * (page - 1));
-
   res.json({
     exercises,
     page,
@@ -92,12 +92,12 @@ const getExercises = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get exercises by category with filtering and pagination
-// @route   GET /api/exercises/category/:category
+// @route   GET /exercises/category/:category
 // @access  Public/Private (depending on premium content)
 
 const getExercisesByCategory = asyncHandler(async (req, res) => {
   const category = req.params.category;
-  const pageSize = Number(req.query.pageSize) || 10;
+  const pageSize = Number(req.query.pageSize) || 9;
   const page = Number(req.query.page) || 1;
 
   // Validate category
@@ -169,9 +169,10 @@ const getExercisesByCategory = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get exercise by ID
-// @route   GET /api/exercises/:id
+// @route   GET /exercises/:id
 // @access  Public/Private (Premium exercises require pro subscription)
 const getExerciseById = asyncHandler(async (req, res) => {
+  console.log(req.params.id)
   const exercise = await Exercise.findById(req.params.id);
 
   if (exercise) {
@@ -180,7 +181,6 @@ const getExerciseById = asyncHandler(async (req, res) => {
       res.status(403);
       throw new Error('This is a premium exercise. Upgrade to pro to access it.');
     }
-    
     res.json(exercise);
   } else {
     res.status(404);
@@ -189,8 +189,8 @@ const getExerciseById = asyncHandler(async (req, res) => {
 });
 
 // @desc    Create a new exercise
-// @route   POST /api/exercises
-// @access  Private
+// @route   POST /exercises
+// @access  Private/Admin
 const createExercise = asyncHandler(async (req, res) => {
   const {
     title,
@@ -199,21 +199,30 @@ const createExercise = asyncHandler(async (req, res) => {
     video,
     image,
     category,
+    subCategory,
     position,
     isPremium,
+    isCustom
   } = req.body;
 
-  // Creating a custom exercise
+  // Validate required fields
+  if (!title || !description || !instruction || !category || !subCategory || !position) {
+    res.status(400);
+    throw new Error('Please fill all required fields');
+  }
+
+  // Create the exercise
   const exercise = await Exercise.create({
     title,
     description,
     instruction,
-    video,
-    image,
+    video: video || '',
+    image: image || '',
     category,
+    subCategory,
     position,
     isPremium: isPremium || false,
-    isCustom: true, // Custom exercise created by user
+    isCustom: isCustom || false
   });
 
   if (exercise) {
@@ -225,8 +234,8 @@ const createExercise = asyncHandler(async (req, res) => {
 });
 
 // @desc    Update an exercise
-// @route   PUT /api/exercises/:id
-// @access  Private
+// @route   PUT /exercises/:id
+// @access  Private/Admin
 const updateExercise = asyncHandler(async (req, res) => {
   const {
     title,
@@ -235,6 +244,7 @@ const updateExercise = asyncHandler(async (req, res) => {
     video,
     image,
     category,
+    subCategory,
     position,
     isPremium,
   } = req.body;
@@ -242,8 +252,8 @@ const updateExercise = asyncHandler(async (req, res) => {
   const exercise = await Exercise.findById(req.params.id);
 
   if (exercise) {
-    // Only allow updates to custom exercises created by the user
-    if (!exercise.isCustom) {
+    // Allow admins to update any exercise, others only custom exercises
+    if (!req.user.role === 'isAdmin' && !exercise.isCustom) {
       res.status(403);
       throw new Error('Can only update custom exercises');
     }
@@ -254,6 +264,7 @@ const updateExercise = asyncHandler(async (req, res) => {
     exercise.video = video || exercise.video;
     exercise.image = image || exercise.image;
     exercise.category = category || exercise.category;
+    exercise.subCategory = subCategory || exercise.subCategory;
     exercise.position = position || exercise.position;
     exercise.isPremium = isPremium !== undefined ? isPremium : exercise.isPremium;
 
@@ -266,14 +277,14 @@ const updateExercise = asyncHandler(async (req, res) => {
 });
 
 // @desc    Delete an exercise
-// @route   DELETE /api/exercises/:id
-// @access  Private
+// @route   DELETE /exercises/:id
+// @access  Private/Admin
 const deleteExercise = asyncHandler(async (req, res) => {
   const exercise = await Exercise.findById(req.params.id);
 
   if (exercise) {
-    // Only allow deletion of custom exercises created by the user
-    if (!exercise.isCustom) {
+    // Allow admins to delete any exercise, others only custom exercises
+    if (!req.user.role === 'isAdmin' && !exercise.isCustom) {
       res.status(403);
       throw new Error('Can only delete custom exercises');
     }
