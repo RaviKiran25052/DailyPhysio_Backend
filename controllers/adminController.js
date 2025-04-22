@@ -59,7 +59,26 @@ const getAdminStats = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get all users for admin
+// @route   GET /api/admin/users
+// @access  Private/Admin
+const getUsers = asyncHandler(async (req, res) => {
+  try {
+    // Get all users
+    const users = await User.find({}).select('-password');
+    
+    res.json({
+      users,
+      count: users.length
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Error retrieving users: ' + error.message);
+  }
+});
+
 module.exports = {
   loginAdmin,
-  getAdminStats
+  getAdminStats,
+  getUsers
 }
