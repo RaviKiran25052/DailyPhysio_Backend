@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
 const Exercise = require('../models/exerciseModel');
+const Therapist = require('../models/Therapist');
+const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
 
 const loginAdmin = asyncHandler(async (req, res) => {
@@ -33,7 +35,7 @@ const getAdminStats = asyncHandler(async (req, res) => {
     
     // Count users by role
     const usersCount = await User.countDocuments({ role: 'isUser' });
-    const therapistsCount = await User.countDocuments({ role: 'isTherapist' });
+    const therapistsCount = await Therapist.countDocuments();
     
     // Get additional statistics if needed
     const premiumExercisesCount = await Exercise.countDocuments({ isPremium: true });
@@ -45,13 +47,24 @@ const getAdminStats = asyncHandler(async (req, res) => {
       ]
     });
     
+    // Get consultation statistics
+    const activeConsultationsCount = await Consultation.countDocuments({
+      'request.status': 'active'
+    });
+    
+    const pendingConsultationsCount = await Consultation.countDocuments({
+      'request.status': 'pending'
+    });
+    
     res.json({
       exercisesCount,
       usersCount,
       therapistsCount,
       premiumExercisesCount,
       customExercisesCount,
-      proUsersCount
+      proUsersCount,
+      activeConsultationsCount,
+      pendingConsultationsCount
     });
   } catch (error) {
     res.status(500);
@@ -77,8 +90,306 @@ const getUsers = asyncHandler(async (req, res) => {
   }
 });
 
+// THERAPIST MANAGEMENT
+
+// @desc    Get all therapists
+// @route   GET /api/admin/therapists
+// @access  Private/Admin
+const getTherapists = asyncHandler(async (req, res) => {
+  try {
+    const therapists = await Therapist.find({});
+    
+    // Update request counts for each therapist
+    for (const therapist of therapists) {
+      await therapist.calculatePendingRequests();
+    }
+    
+    res.json({
+      success: true,
+      therapists,
+      count: therapists.length
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Error retrieving therapists: ' + error.message);
+  }
+});
+
+// @desc    Get a single therapist by ID
+// @route   GET /api/admin/therapists/:id
+// @access  Private/Admin
+const getTherapistById = asyncHandler(async (req, res) => {
+  try {
+    const therapist = await Therapist.findById(req.params.id);
+    
+    if (!therapist) {
+      res.status(404);
+      throw new Error('Therapist not found');
+    }
+    
+    // Update request count
+    await therapist.calculatePendingRequests();
+    
+    res.json({
+      success: true,
+      therapist
+    });
+  } catch (error) {
+    res.status(error.kind === 'ObjectId' ? 404 : 500);
+    throw new Error(error.kind === 'ObjectId' 
+      ? 'Therapist not found' 
+      : 'Error retrieving therapist: ' + error.message
+    );
+  }
+});
+
+// @desc    Create a new therapist
+// @route   POST /api/admin/therapists
+// @access  Private/Admin
+const createTherapist = asyncHandler(async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      gender,
+      specializations,
+      workingAt,
+      address,
+      experience
+    } = req.body;
+
+    // Check if therapist with this email already exists
+    const existingTherapist = await Therapist.findOne({ email });
+    if (existingTherapist) {
+      res.status(400);
+      throw new Error('A therapist with this email already exists');
+    }
+
+    // Create new therapist
+    const therapist = await Therapist.create({
+      name,
+      email,
+      gender,
+      specializations,
+      workingAt,
+      address,
+      experience,
+      consultationCount: 0,
+      requestCount: 0
+    });
+
+    res.status(201).json({
+      success: true,
+      therapist
+    });
+  } catch (error) {
+    res.status(error.status || 500);
+    throw new Error(error.message || 'Error creating therapist');
+  }
+});
+
+// @desc    Update a therapist
+// @route   PUT /api/admin/therapists/:id
+// @access  Private/Admin
+const updateTherapist = asyncHandler(async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      gender,
+      specializations,
+      workingAt,
+      address,
+      experience
+    } = req.body;
+
+    // Find therapist
+    const therapist = await Therapist.findById(req.params.id);
+    if (!therapist) {
+      res.status(404);
+      throw new Error('Therapist not found');
+    }
+
+    // Check if updated email is already in use by another therapist
+    if (email !== therapist.email) {
+      const existingTherapist = await Therapist.findOne({ email });
+      if (existingTherapist) {
+        res.status(400);
+        throw new Error('A therapist with this email already exists');
+      }
+    }
+
+    // Update therapist
+    therapist.name = name || therapist.name;
+    therapist.email = email || therapist.email;
+    therapist.gender = gender || therapist.gender;
+    therapist.specializations = specializations || therapist.specializations;
+    therapist.workingAt = workingAt || therapist.workingAt;
+    therapist.address = address || therapist.address;
+    therapist.experience = experience || therapist.experience;
+
+    const updatedTherapist = await therapist.save();
+
+    res.json({
+      success: true,
+      therapist: updatedTherapist
+    });
+  } catch (error) {
+    res.status(error.status || 500);
+    throw new Error(error.message || 'Error updating therapist');
+  }
+});
+
+// @desc    Delete a therapist
+// @route   DELETE /api/admin/therapists/:id
+// @access  Private/Admin
+const deleteTherapist = asyncHandler(async (req, res) => {
+  try {
+    const therapist = await Therapist.findById(req.params.id);
+    
+    if (!therapist) {
+      res.status(404);
+      throw new Error('Therapist not found');
+    }
+    
+    // Check if therapist has active consultations
+    const activeConsultations = await Consultation.countDocuments({
+      therapist_id: therapist._id,
+      'request.status': 'active'
+    });
+    
+    if (activeConsultations > 0) {
+      res.status(400);
+      throw new Error('Cannot delete therapist with active consultations');
+    }
+    
+    // Delete all consultations associated with this therapist
+    await Consultation.deleteMany({ therapist_id: therapist._id });
+    
+    // Delete the therapist
+    await therapist.remove();
+    
+    res.json({
+      success: true,
+      message: 'Therapist deleted successfully'
+    });
+  } catch (error) {
+    res.status(error.status || 500);
+    throw new Error(error.message || 'Error deleting therapist');
+  }
+});
+
+// CONSULTATION MANAGEMENT
+
+// @desc    Get all consultations
+// @route   GET /api/admin/consultations
+// @access  Private/Admin
+const getConsultations = asyncHandler(async (req, res) => {
+  try {
+    const consultations = await Consultation.find({})
+      .populate('therapist_id', 'name email')
+      .populate('patient_id', 'fullName email')
+      .populate('recommendedExercises', 'title bodyPart');
+    
+    res.json({
+      success: true,
+      consultations,
+      count: consultations.length
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Error retrieving consultations: ' + error.message);
+  }
+});
+
+// @desc    Get consultations by therapist
+// @route   GET /api/admin/consultations/therapist/:id
+// @access  Private/Admin
+const getConsultationsByTherapist = asyncHandler(async (req, res) => {
+  try {
+    const therapistId = req.params.id;
+    
+    // Verify therapist exists
+    const therapist = await Therapist.findById(therapistId);
+    if (!therapist) {
+      res.status(404);
+      throw new Error('Therapist not found');
+    }
+    
+    const consultations = await Consultation.find({ therapist_id: therapistId })
+      .populate('patient_id', 'fullName email')
+      .populate('recommendedExercises', 'title bodyPart');
+    
+    res.json({
+      success: true,
+      therapist,
+      consultations,
+      count: consultations.length
+    });
+  } catch (error) {
+    res.status(error.kind === 'ObjectId' ? 404 : 500);
+    throw new Error(error.kind === 'ObjectId' 
+      ? 'Therapist not found' 
+      : 'Error retrieving consultations: ' + error.message
+    );
+  }
+});
+
+// @desc    Update consultation status
+// @route   PUT /api/admin/consultations/:id/status
+// @access  Private/Admin
+const updateConsultationStatus = asyncHandler(async (req, res) => {
+  try {
+    const { status, activeDays } = req.body;
+    
+    if (!['pending', 'active', 'inactive'].includes(status)) {
+      res.status(400);
+      throw new Error('Invalid status value');
+    }
+    
+    const consultation = await Consultation.findById(req.params.id);
+    
+    if (!consultation) {
+      res.status(404);
+      throw new Error('Consultation not found');
+    }
+    
+    if (status === 'active') {
+      // Activate the consultation with the specified days
+      await consultation.activateConsultation(activeDays);
+    } else {
+      // Simply update the status
+      consultation.request.status = status;
+      await consultation.save();
+    }
+    
+    // Update therapist counts
+    const therapist = await Therapist.findById(consultation.therapist_id);
+    if (therapist) {
+      await therapist.calculatePendingRequests();
+      await therapist.updateConsultationCount();
+    }
+    
+    res.json({
+      success: true,
+      consultation
+    });
+  } catch (error) {
+    res.status(error.status || 500);
+    throw new Error(error.message || 'Error updating consultation status');
+  }
+});
+
 module.exports = {
   loginAdmin,
   getAdminStats,
-  getUsers
+  getUsers,
+  getTherapists,
+  getTherapistById,
+  createTherapist,
+  updateTherapist,
+  deleteTherapist,
+  getConsultations,
+  getConsultationsByTherapist,
+  updateConsultationStatus
 }
