@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const User = require('./models/userModel');
-const connectDB = require('./config/db');
+const User = require('../models/userModel');
+const connectDB = require('../config/db');
 
 dotenv.config();
 
@@ -12,7 +12,7 @@ const createAdmin = async () => {
   try {
     // Check if admin already exists
     const adminExists = await User.findOne({ email: process.env.ADMIN_EMAIL || 'admin@example.com' });
-    
+
     if (adminExists) {
       console.log('Admin user already exists');
       process.exit(0);

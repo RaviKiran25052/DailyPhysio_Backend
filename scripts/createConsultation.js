@@ -1,18 +1,10 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
 const Consultation = require('../models/Consultation');
 const Therapist = require('../models/Therapist');
+const connectDB = require('../config/db');
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hep2go', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('MongoDB Connected'))
-.catch(err => {
-  console.error('MongoDB connection error:', err);
-  process.exit(1);
-});
+connectDB();
 
 // Consultation data
 const consultationData = {
@@ -23,13 +15,8 @@ const consultationData = {
     '6803b993d4fa54dd1adcc1a5'
   ],
   request: {
-    status: 'pending',
-    activeDays: 30,
-    notes: 'Initial consultation request'
-  },
-  patientNotes: 'Patient requested specific exercises for shoulder rehabilitation',
-  therapistNotes: '',
-  progress: 0
+    activeDays: 30
+  }
 };
 
 // Function to create consultation and update therapist counts
