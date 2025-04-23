@@ -62,27 +62,28 @@ const therapistSchema = new mongoose.Schema(
 // Method to calculate the number of pending requests
 therapistSchema.methods.calculatePendingRequests = async function() {
   const Consultation = mongoose.model('Consultation');
-  const pendingCount = await Consultation.countDocuments({
-    therapist_id: this._id,
-    'request.status': 'pending'
-  });
+  const result = await Consultation.aggregate([
+    { $match: { therapist_id: this._id } },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        pending: {
+          $sum: {
+            $cond: [{ $eq: ['$request.status', 'pending'] }, 1, 0]
+          }
+        }
+      }
+    }
+  ]);
   
-  this.requestCount = pendingCount;
+  const totalConsultations = result[0]?.total || 0;
+  const pendingRequests = result[0]?.pending || 0;
+  
+  this.requestCount = pendingRequests;
+  this.consultationCount = totalConsultations;
   await this.save();
   return pendingCount;
-};
-
-// Method to update consultation count
-therapistSchema.methods.updateConsultationCount = async function() {
-  const Consultation = mongoose.model('Consultation');
-  const consultationCount = await Consultation.countDocuments({
-    therapist_id: this._id,
-    'request.status': 'active'
-  });
-  
-  this.consultationCount = consultationCount;
-  await this.save();
-  return consultationCount;
 };
 
 const Therapist = mongoose.model('Therapist', therapistSchema);

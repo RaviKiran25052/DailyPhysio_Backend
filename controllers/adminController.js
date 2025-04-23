@@ -6,24 +6,24 @@ const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
 
 const loginAdmin = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
-  
-    if (user && (await user.matchPassword(password)) && user.role == 'isAdmin') {
-      res.json({
-        _id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        pro: user.pro,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(401);
-      throw new Error('Invalid email or password');
-    }
-  });
+  const user = await User.findOne({ email });
+
+  if (user && (await user.matchPassword(password)) && user.role == 'isAdmin') {
+    res.json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      pro: user.pro,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(401);
+    throw new Error('Invalid email or password');
+  }
+});
 
 // @desc    Get admin dashboard statistics
 // @route   GET /api/admin/stats
@@ -32,30 +32,30 @@ const getAdminStats = asyncHandler(async (req, res) => {
   try {
     // Count total exercises
     const exercisesCount = await Exercise.countDocuments({});
-    
+
     // Count users by role
     const usersCount = await User.countDocuments({ role: 'isUser' });
     const therapistsCount = await Therapist.countDocuments();
-    
+
     // Get additional statistics if needed
     const premiumExercisesCount = await Exercise.countDocuments({ isPremium: true });
     const customExercisesCount = await Exercise.countDocuments({ isCustom: true });
-    const proUsersCount = await User.countDocuments({ 
+    const proUsersCount = await User.countDocuments({
       $and: [
         { role: 'isUser' },
         { 'pro.type': { $in: ['monthly', 'yearly'] } }
       ]
     });
-    
+
     // Get consultation statistics
     const activeConsultationsCount = await Consultation.countDocuments({
       'request.status': 'active'
     });
-    
+
     const pendingConsultationsCount = await Consultation.countDocuments({
       'request.status': 'pending'
     });
-    
+
     res.json({
       exercisesCount,
       usersCount,
@@ -79,7 +79,7 @@ const getUsers = asyncHandler(async (req, res) => {
   try {
     // Get all users
     const users = await User.find({}).select('-password');
-    
+
     res.json({
       users,
       count: users.length
@@ -98,12 +98,12 @@ const getUsers = asyncHandler(async (req, res) => {
 const getTherapists = asyncHandler(async (req, res) => {
   try {
     const therapists = await Therapist.find({});
-    
+
     // Update request counts for each therapist
     for (const therapist of therapists) {
       await therapist.calculatePendingRequests();
     }
-    
+
     res.json({
       success: true,
       therapists,
@@ -121,23 +121,23 @@ const getTherapists = asyncHandler(async (req, res) => {
 const getTherapistById = asyncHandler(async (req, res) => {
   try {
     const therapist = await Therapist.findById(req.params.id);
-    
+
     if (!therapist) {
       res.status(404);
       throw new Error('Therapist not found');
     }
-    
+
     // Update request count
     await therapist.calculatePendingRequests();
-    
+
     res.json({
       success: true,
       therapist
     });
   } catch (error) {
     res.status(error.kind === 'ObjectId' ? 404 : 500);
-    throw new Error(error.kind === 'ObjectId' 
-      ? 'Therapist not found' 
+    throw new Error(error.kind === 'ObjectId'
+      ? 'Therapist not found'
       : 'Error retrieving therapist: ' + error.message
     );
   }
@@ -246,29 +246,29 @@ const updateTherapist = asyncHandler(async (req, res) => {
 const deleteTherapist = asyncHandler(async (req, res) => {
   try {
     const therapist = await Therapist.findById(req.params.id);
-    
+
     if (!therapist) {
       res.status(404);
       throw new Error('Therapist not found');
     }
-    
+
     // Check if therapist has active consultations
     const activeConsultations = await Consultation.countDocuments({
       therapist_id: therapist._id,
       'request.status': 'active'
     });
-    
+
     if (activeConsultations > 0) {
       res.status(400);
       throw new Error('Cannot delete therapist with active consultations');
     }
-    
+
     // Delete all consultations associated with this therapist
     await Consultation.deleteMany({ therapist_id: therapist._id });
-    
+
     // Delete the therapist
     await therapist.remove();
-    
+
     res.json({
       success: true,
       message: 'Therapist deleted successfully'
@@ -290,7 +290,7 @@ const getConsultations = asyncHandler(async (req, res) => {
       .populate('therapist_id', 'name email')
       .populate('patient_id', 'fullName email')
       .populate('recommendedExercises', 'title bodyPart');
-    
+
     res.json({
       success: true,
       consultations,
@@ -308,18 +308,18 @@ const getConsultations = asyncHandler(async (req, res) => {
 const getConsultationsByTherapist = asyncHandler(async (req, res) => {
   try {
     const therapistId = req.params.id;
-    
+
     // Verify therapist exists
     const therapist = await Therapist.findById(therapistId);
     if (!therapist) {
       res.status(404);
       throw new Error('Therapist not found');
     }
-    
+
     const consultations = await Consultation.find({ therapist_id: therapistId })
       .populate('patient_id', 'fullName email')
       .populate('recommendedExercises', 'title bodyPart');
-    
+
     res.json({
       success: true,
       therapist,
@@ -328,8 +328,8 @@ const getConsultationsByTherapist = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     res.status(error.kind === 'ObjectId' ? 404 : 500);
-    throw new Error(error.kind === 'ObjectId' 
-      ? 'Therapist not found' 
+    throw new Error(error.kind === 'ObjectId'
+      ? 'Therapist not found'
       : 'Error retrieving consultations: ' + error.message
     );
   }
@@ -341,19 +341,19 @@ const getConsultationsByTherapist = asyncHandler(async (req, res) => {
 const updateConsultationStatus = asyncHandler(async (req, res) => {
   try {
     const { status, activeDays } = req.body;
-    
+
     if (!['pending', 'active', 'inactive'].includes(status)) {
       res.status(400);
       throw new Error('Invalid status value');
     }
-    
+
     const consultation = await Consultation.findById(req.params.id);
-    
+
     if (!consultation) {
       res.status(404);
       throw new Error('Consultation not found');
     }
-    
+
     if (status === 'active') {
       // Activate the consultation with the specified days
       await consultation.activateConsultation(activeDays);
@@ -362,14 +362,13 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
       consultation.request.status = status;
       await consultation.save();
     }
-    
+
     // Update therapist counts
     const therapist = await Therapist.findById(consultation.therapist_id);
     if (therapist) {
       await therapist.calculatePendingRequests();
-      await therapist.updateConsultationCount();
     }
-    
+
     res.json({
       success: true,
       consultation
