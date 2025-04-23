@@ -83,7 +83,7 @@ therapistSchema.methods.calculatePendingRequests = async function() {
   this.requestCount = pendingRequests;
   this.consultationCount = totalConsultations;
   await this.save();
-  return pendingCount;
+  return;
 };
 
 const Therapist = mongoose.model('Therapist', therapistSchema);
