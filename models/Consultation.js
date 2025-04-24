@@ -22,38 +22,18 @@ const consultationSchema = new mongoose.Schema(
     request: {
       status: {
         type: String,
-        enum: ['pending', 'active', 'inactive'],
-        default: 'pending'
+        enum: ['active', 'inactive'],
+        default: 'active'
       },
       activeDays: {
         type: Number,
         default: 0
       },
-      startDate: {
-        type: Date
-      },
-      endDate: {
-        type: Date
-      },
-      notes: {
-        type: String,
-        trim: true
-      }
     },
-    patientNotes: {
+    notes: {
       type: String,
       trim: true
     },
-    therapistNotes: {
-      type: String,
-      trim: true
-    },
-    progress: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0
-    }
   },
   {
     timestamps: true

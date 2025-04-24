@@ -40,51 +40,32 @@ const therapistSchema = new mongoose.Schema(
       required: [true, 'Address is required'],
       trim: true
     },
-    consultationCount: {
-      type: Number,
-      default: 0
-    },
-    requestCount: {
-      type: Number,
-      default: 0
+    phone: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      trim: true,
+      match: [/^\d{10}$/, 'Please enter a valid phone number']
     },
     experience: {
       type: String,
       required: [true, 'Experience is required'],
       trim: true
-    }
+    },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      minlength: [6, 'Password must be at least 6 characters long']
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active'
+    },
   },
   {
     timestamps: true
   }
 );
-
-// Method to calculate the number of pending requests
-therapistSchema.methods.calculatePendingRequests = async function() {
-  const Consultation = mongoose.model('Consultation');
-  const result = await Consultation.aggregate([
-    { $match: { therapist_id: this._id } },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: 1 },
-        pending: {
-          $sum: {
-            $cond: [{ $eq: ['$request.status', 'pending'] }, 1, 0]
-          }
-        }
-      }
-    }
-  ]);
-  
-  const totalConsultations = result[0]?.total || 0;
-  const pendingRequests = result[0]?.pending || 0;
-  
-  this.requestCount = pendingRequests;
-  this.consultationCount = totalConsultations;
-  await this.save();
-  return;
-};
 
 const Therapist = mongoose.model('Therapist', therapistSchema);
 
