@@ -58,8 +58,8 @@ const therapistSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive'],
-      default: 'active'
+      enum: ['active', 'inactive', 'rejected'],
+      default: 'inactive'
     },
   },
   {
