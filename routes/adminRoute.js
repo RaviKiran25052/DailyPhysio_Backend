@@ -12,7 +12,8 @@ const {
   deleteTherapist,
   getConsultations,
   getConsultationsByTherapist,
-  updateConsultationStatus
+  updateConsultationStatus,
+  approveTherapist
 } = require('../controllers/adminController')
 
 // Public route for admin login
@@ -34,6 +35,7 @@ router.route('/therapists/:id')
   .put(protect, isAdmin, updateTherapist)
   .delete(protect, isAdmin, deleteTherapist);
 
+  router.put('/therapists/:id/approve', isAdmin,approveTherapist);
 // Protected admin routes - Consultation Management
 router.get('/consultations', protect, isAdmin, getConsultations);
 router.get('/consultations/therapist/:id', protect, isAdmin, getConsultationsByTherapist);

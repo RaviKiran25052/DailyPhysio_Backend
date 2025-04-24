@@ -91,7 +91,16 @@ const getUsers = asyncHandler(async (req, res) => {
 });
 
 // THERAPIST MANAGEMENT
-
+const approveTherapist = async (req, res) => {
+  try {
+      const { id } = req.params;
+      const therapist = await Therapist.findByIdAndUpdate(id, { status: 'active' }, { new: true });
+      if (!therapist) return res.status(404).json({ message: 'Therapist not found' });
+      res.status(200).json(therapist);
+  } catch (error) {
+      res.status(400).json({ message: error.message });
+  }
+};
 // @desc    Get all therapists
 // @route   GET /api/admin/therapists
 // @access  Private/Admin
@@ -390,5 +399,6 @@ module.exports = {
   deleteTherapist,
   getConsultations,
   getConsultationsByTherapist,
-  updateConsultationStatus
+  updateConsultationStatus,
+  approveTherapist
 }
