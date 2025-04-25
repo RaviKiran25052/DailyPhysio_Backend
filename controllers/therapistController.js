@@ -16,6 +16,7 @@ exports.registerTherapist = async (req, res) => {
                 _id: therapist._id,
                 name: therapist.name,
                 email: therapist.email,
+                status: therapist.status,
                 token: generateToken(therapist._id),
             });
         }
@@ -34,6 +35,7 @@ exports.loginTherapist = async (req, res) => {
             _id: therapist._id,
             name: therapist.name,
             email: therapist.email,
+            status: therapist.status,
             token: generateToken(therapist._id),
         });
     } else {

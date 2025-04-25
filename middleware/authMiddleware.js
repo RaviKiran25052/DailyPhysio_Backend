@@ -41,9 +41,24 @@ const isTherapist = asyncHandler(async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.therapist = await Therapist.findById(decoded.id).select('-password');
 
+      const therapist = await Therapist.findById(decoded.id).select('-password');
+
+      // Check if therapist exists
+      if (!therapist) {
+        res.status(404);
+        throw new Error('Therapist not found');
+      }
+
+      // Check if therapist status is active
+      if (therapist.status !== 'active') {
+        res.status(403);
+        throw new Error('Access denied. Account is not active');
+      }
+
+      req.therapist = therapist;
       next();
+
     } catch (error) {
       console.error(error);
       res.status(401);
