@@ -62,6 +62,10 @@ const therapistSchema = new mongoose.Schema(
       enum: ['active', 'inactive', 'rejected', 'pending'],
       default: 'pending'
     },
+    consultationCount: {
+      type: Number,
+      default: 0
+    },
   },
   {
     timestamps: true
@@ -77,6 +81,14 @@ therapistSchema.pre('save', async function (next) {
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
+
+// Method to update consultation count
+therapistSchema.methods.updateConsultationCount = async function () {
+  const Consultation = mongoose.model('Consultation');
+  const count = await Consultation.countDocuments({ therapist_id: this._id });
+  this.consultationCount = count;
+  await this.save();
+};
 
 // Method to compare entered password with hashed password
 therapistSchema.methods.matchPassword = async function (enteredPassword) {

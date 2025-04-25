@@ -103,7 +103,6 @@ const approveTherapist = async (req, res) => {
   }
 };
 
-
 const getAllTherapists = asyncHandler(async (req, res) => {
   try {
     const therapists = await Therapist.find({});
@@ -125,11 +124,6 @@ const getTherapists = asyncHandler(async (req, res) => {
   try {
     const therapists = await Therapist.find({ status: 'active' });
     const pendingCount = await Therapist.countDocuments({ status: 'pending' });
-
-    // Update request counts for each therapist
-    // for (const therapist of therapists) {
-    //   await therapist.calculatePendingRequests();
-    // }
 
     res.json({
       success: true,
@@ -247,9 +241,6 @@ const deleteTherapist = asyncHandler(async (req, res) => {
 
     // Delete all consultations associated with this therapist
     await Consultation.deleteMany({ therapist_id: therapist._id });
-
-    // Delete the therapist
-    await therapist.remove();
 
     res.json({
       success: true,
