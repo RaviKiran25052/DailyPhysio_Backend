@@ -1,10 +1,11 @@
 const express = require('express')
 const router = express.Router();
 const { protect, isAdmin } = require('../middleware/authMiddleware');
-const { 
-  loginAdmin, 
-  getAdminStats, 
+const {
+  loginAdmin,
+  getAdminStats,
   getUsers,
+  getAllTherapists,
   getTherapists,
   getTherapistById,
   updateTherapist,
@@ -25,6 +26,9 @@ router.get('/stats', protect, isAdmin, getAdminStats);
 router.get('/users', protect, isAdmin, getUsers);
 
 // Protected admin routes - Therapist Management
+router.route('/therapists/all')
+  .get(protect, isAdmin, getAllTherapists)
+
 router.route('/therapists')
   .get(protect, isAdmin, getTherapists)
 
@@ -33,7 +37,7 @@ router.route('/therapists/:id')
   .put(protect, isAdmin, updateTherapist)
   .delete(protect, isAdmin, deleteTherapist);
 
-  router.put('/therapists/:id/approve', isAdmin,approveTherapist);
+router.put('/therapists/:id/approve', protect, isAdmin, approveTherapist);
 // Protected admin routes - Consultation Management
 router.get('/consultations', protect, isAdmin, getConsultations);
 router.get('/consultations/therapist/:id', protect, isAdmin, getConsultationsByTherapist);

@@ -35,7 +35,7 @@ const getAdminStats = asyncHandler(async (req, res) => {
 
     // Count users by role
     const usersCount = await User.countDocuments({ role: 'isUser' });
-    const therapistsCount = await Therapist.countDocuments();
+    const therapistsCount = await Therapist.countDocuments({ status: 'active' });
 
     // Get additional statistics if needed
     const premiumExercisesCount = await Exercise.countDocuments({ isPremium: true });
@@ -94,29 +94,47 @@ const getUsers = asyncHandler(async (req, res) => {
 const approveTherapist = async (req, res) => {
   try {
       const { id } = req.params;
-      const therapist = await Therapist.findByIdAndUpdate(id, { status: 'active' }, { new: true });
+      
+      const therapist = await Therapist.findByIdAndUpdate(id, { status: req.body.state }, { new: true });
       if (!therapist) return res.status(404).json({ message: 'Therapist not found' });
       res.status(200).json(therapist);
   } catch (error) {
       res.status(400).json({ message: error.message });
   }
 };
-// @desc    Get all therapists
-// @route   GET /api/admin/therapists
-// @access  Private/Admin
-const getTherapists = asyncHandler(async (req, res) => {
+
+
+const getAllTherapists = asyncHandler(async (req, res) => {
   try {
     const therapists = await Therapist.find({});
-
-    // Update request counts for each therapist
-    for (const therapist of therapists) {
-      await therapist.calculatePendingRequests();
-    }
 
     res.json({
       success: true,
       therapists,
-      count: therapists.length
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Error retrieving therapists: ' + error.message);
+  }
+});
+
+// @desc    Get therapists
+// @route   GET /api/admin/therapists
+// @access  Private/Admin
+const getTherapists = asyncHandler(async (req, res) => {
+  try {
+    const therapists = await Therapist.find({ status: 'active' });
+    const pendingCount = await Therapist.countDocuments({ status: 'pending' });
+
+    // Update request counts for each therapist
+    // for (const therapist of therapists) {
+    //   await therapist.calculatePendingRequests();
+    // }
+
+    res.json({
+      success: true,
+      therapists,
+      requestCount: pendingCount
     });
   } catch (error) {
     res.status(500);
@@ -137,7 +155,7 @@ const getTherapistById = asyncHandler(async (req, res) => {
     }
 
     // Update request count
-    await therapist.calculatePendingRequests();
+    // await therapist.calculatePendingRequests();
 
     res.json({
       success: true,
@@ -329,9 +347,9 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
 
     // Update therapist counts
     const therapist = await Therapist.findById(consultation.therapist_id);
-    if (therapist) {
-      await therapist.calculatePendingRequests();
-    }
+    // if (therapist) {
+    //   await therapist.calculatePendingRequests();
+    // }
 
     res.json({
       success: true,
@@ -347,6 +365,7 @@ module.exports = {
   loginAdmin,
   getAdminStats,
   getUsers,
+  getAllTherapists,
   getTherapists,
   getTherapistById,
   updateTherapist,
