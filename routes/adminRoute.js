@@ -7,7 +7,6 @@ const {
   getUsers,
   getTherapists,
   getTherapistById,
-  createTherapist,
   updateTherapist,
   deleteTherapist,
   getConsultations,
@@ -28,7 +27,6 @@ router.get('/users', protect, isAdmin, getUsers);
 // Protected admin routes - Therapist Management
 router.route('/therapists')
   .get(protect, isAdmin, getTherapists)
-  .post(protect, isAdmin, createTherapist);
 
 router.route('/therapists/:id')
   .get(protect, isAdmin, getTherapistById)

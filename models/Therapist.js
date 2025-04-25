@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const therapistSchema = new mongoose.Schema(
   {
@@ -40,7 +41,7 @@ const therapistSchema = new mongoose.Schema(
       required: [true, 'Address is required'],
       trim: true
     },
-    phone: {
+    phoneNumber: {
       type: String,
       required: [true, 'Phone number is required'],
       trim: true,
@@ -66,6 +67,21 @@ const therapistSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// Method to hash password before saving
+therapistSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) {
+    next();
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Method to compare entered password with hashed password
+therapistSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 const Therapist = mongoose.model('Therapist', therapistSchema);
 

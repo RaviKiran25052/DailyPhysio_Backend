@@ -152,51 +152,6 @@ const getTherapistById = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Create a new therapist
-// @route   POST /api/admin/therapists
-// @access  Private/Admin
-const createTherapist = asyncHandler(async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      gender,
-      specializations,
-      workingAt,
-      address,
-      experience
-    } = req.body;
-
-    // Check if therapist with this email already exists
-    const existingTherapist = await Therapist.findOne({ email });
-    if (existingTherapist) {
-      res.status(400);
-      throw new Error('A therapist with this email already exists');
-    }
-
-    // Create new therapist
-    const therapist = await Therapist.create({
-      name,
-      email,
-      gender,
-      specializations,
-      workingAt,
-      address,
-      experience,
-      consultationCount: 0,
-      requestCount: 0
-    });
-
-    res.status(201).json({
-      success: true,
-      therapist
-    });
-  } catch (error) {
-    res.status(error.status || 500);
-    throw new Error(error.message || 'Error creating therapist');
-  }
-});
-
 // @desc    Update a therapist
 // @route   PUT /api/admin/therapists/:id
 // @access  Private/Admin
@@ -394,7 +349,6 @@ module.exports = {
   getUsers,
   getTherapists,
   getTherapistById,
-  createTherapist,
   updateTherapist,
   deleteTherapist,
   getConsultations,

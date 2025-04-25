@@ -41,17 +41,10 @@ const consultationSchema = new mongoose.Schema(
 );
 
 // Method to activate a consultation
-consultationSchema.methods.activateConsultation = async function(activeDays) {
-  // Update request status and set active days
+consultationSchema.methods.activateConsultation = async function (activeDays) {
   this.request.status = 'active';
-  this.request.activeDays = activeDays || 30; // Default to 30 days if not specified
-  this.request.startDate = new Date();
-  
-  // Calculate end date based on active days
-  const endDate = new Date();
-  endDate.setDate(endDate.getDate() + this.request.activeDays);
-  this.request.endDate = endDate;
-  
+  this.request.activeDays = activeDays || 30; // Default to 30 days
+
   await this.save();
 
   // Update therapist consultation count
@@ -64,14 +57,19 @@ consultationSchema.methods.activateConsultation = async function(activeDays) {
   return this;
 };
 
-// Method to check if a consultation is expired
+// Method to check if a consultation is expired (calculated, not stored)
 consultationSchema.methods.checkExpiration = async function() {
   if (this.request.status !== 'active') {
     return false;
   }
 
+  const createdAt = this.createdAt;
   const now = new Date();
-  if (now > this.request.endDate) {
+
+  const expirationDate = new Date(createdAt);
+  expirationDate.setDate(expirationDate.getDate() + this.request.activeDays);
+
+  if (now > expirationDate) {
     this.request.status = 'inactive';
     await this.save();
     return true;
@@ -79,33 +77,6 @@ consultationSchema.methods.checkExpiration = async function() {
 
   return false;
 };
-
-// Method to add recommended exercise
-consultationSchema.methods.addExercise = async function(exerciseId) {
-  if (!this.recommendedExercises.includes(exerciseId)) {
-    this.recommendedExercises.push(exerciseId);
-    await this.save();
-  }
-  return this;
-};
-
-// Method to remove a recommended exercise
-consultationSchema.methods.removeExercise = async function(exerciseId) {
-  this.recommendedExercises = this.recommendedExercises.filter(id => 
-    id.toString() !== exerciseId.toString()
-  );
-  await this.save();
-  return this;
-};
-
-// Middleware to update therapist request count after saving a consultation
-consultationSchema.post('save', async function() {
-  const Therapist = mongoose.model('Therapist');
-  const therapist = await Therapist.findById(this.therapist_id);
-  if (therapist) {
-    await therapist.calculatePendingRequests();
-  }
-});
 
 const Consultation = mongoose.model('Consultation', consultationSchema);
 

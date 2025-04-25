@@ -3,26 +3,25 @@
 const express = require('express');
 const router = express.Router();
 const therapistController = require('../controllers/therapistController');
+const { isTherapist } = require('../middleware/authMiddleware');
 
-// Create a new therapist
-router.post('/therapists', therapistController.createTherapist);
+router.post('/login', therapistController.loginTherapist);
+router.post('/register', therapistController.registerTherapist);
 
-// Get all therapists
-router.get('/therapists', therapistController.getAllTherapists);
-
-// Update a therapist
-router.put('/therapists/:id', therapistController.updateTherapist);
-
-// Delete a therapist
-router.delete('/therapists/:id', therapistController.deleteTherapist);
+router.route('/')
+	.get(isTherapist, therapistController.getTherapist)
+	.put(isTherapist, therapistController.updateTherapist)
+	.delete(isTherapist, therapistController.deleteTherapist);
 
 // Fetch all users
-router.get('/users', therapistController.getAllUsers);
+router.get('/users', isTherapist, therapistController.getAllUsers);
 
 // Fetch all exercises
-router.get('/exercises', therapistController.getAllExercises);
+router.get('/exercises', isTherapist, therapistController.getAllExercises);
 
 // Create a consultation entry
-router.post('/consultations', therapistController.createConsultation);
+router.route('/consultations')
+	.get(isTherapist, therapistController.getConsultations)
+	.post(isTherapist, therapistController.createConsultation);
 
 module.exports = router;
