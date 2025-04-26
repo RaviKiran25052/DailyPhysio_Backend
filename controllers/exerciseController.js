@@ -52,7 +52,6 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
 const getExercises = asyncHandler(async (req, res) => {
   const pageSize = 9;
   const page = Number(req.query.pageNumber) || 1;
-  console.log(req.query);
 
   const keyword = req.query.keyword
     ? {
@@ -193,7 +192,6 @@ const getExercisesByCategory = asyncHandler(async (req, res) => {
 // @route   GET /exercises/:id
 // @access  Public/Private (Premium exercises require pro subscription)
 const getExerciseById = asyncHandler(async (req, res) => {
-  console.log(req.params.id)
   const exercise = await Exercise.findById(req.params.id);
 
   if (exercise) {

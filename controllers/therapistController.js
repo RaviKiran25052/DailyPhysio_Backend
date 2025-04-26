@@ -79,7 +79,7 @@ exports.deleteTherapist = async (req, res) => {
 // Fetch all users
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find();
+        const users = await User.find({role: "isUser"}).select('-password');
         res.status(200).json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -109,14 +109,14 @@ exports.getConsultations = async (req, res) => {
 // Create a consultation entry
 exports.createConsultation = async (req, res) => {
     try {
-        const { therapistId, userId, exercises = [], activeDays = 30, desp = '' } = req.body;
+        const { userId, exercises = [], activeDays = 30, desp = '' } = req.body;
 
-        if (!therapistId || !userId) {
-            return res.status(400).json({ message: "Therapist ID and User ID are required." });
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required." });
         }
 
         const consultation = new Consultation({
-            therapist_id: therapistId,
+            therapist_id: req.therapist._id,
             patient_id: userId,
             recommendedExercises: exercises,
             request: { activeDays },

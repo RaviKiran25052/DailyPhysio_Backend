@@ -40,15 +40,6 @@ const consultationSchema = new mongoose.Schema(
   }
 );
 
-consultationSchema.post('save', async function (doc) {
-  // After saving a consultation, update the therapist's consultation count
-  const Therapist = mongoose.model('Therapist');
-  const therapist = await Therapist.findById(doc.therapist_id);
-  if (therapist) {
-    await therapist.updateConsultationCount();
-  }
-});
-
 // Method to activate a consultation
 consultationSchema.methods.activateConsultation = async function (activeDays) {
   this.request.status = 'active';
@@ -59,9 +50,6 @@ consultationSchema.methods.activateConsultation = async function (activeDays) {
   // Update therapist consultation count
   const Therapist = mongoose.model('Therapist');
   const therapist = await Therapist.findById(this.therapist_id);
-  if (therapist) {
-    await therapist.updateConsultationCount();
-  }
 
   return this;
 };
