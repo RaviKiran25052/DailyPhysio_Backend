@@ -1,8 +1,8 @@
 // therapistController.js
 
 const Therapist = require('../models/Therapist');
-const User = require('../models/userModel');
-const Exercise = require('../models/exerciseModel');
+const User = require('../models/User');
+const Exercise = require('../models/Exercise');
 const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
 

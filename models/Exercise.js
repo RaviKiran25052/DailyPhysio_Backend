@@ -15,12 +15,43 @@ const exerciseSchema = mongoose.Schema(
       required: true
     },
     video: {
-      type: String,
-      default: ''
+      type: [String],
+      default: ['']
     },
     image: {
-      type: String,
-      default: ''
+      type: [String],
+      default: ['']
+    },
+    reps: {
+      type: Number,
+      default: 1,
+    },
+    hold: {
+      type: Number,
+      default: 1,
+    },
+    complete: {
+      type: Number,
+      default: 1,
+    },
+    perform: {
+      count: {
+        type: Number,
+        default: 1,
+      },
+      type: {
+        type: String,
+        enum: ['hour', 'day', 'week'],
+        default: 'hour',
+      },
+    },
+    views: {
+      type: Number,
+      default: 0,
+    },
+    favorites: {
+      type: Number,
+      default: 0,
     },
     category: {
       type: String,
@@ -50,9 +81,10 @@ const exerciseSchema = mongoose.Schema(
       type: Boolean,
       default: false
     },
-    isCustom: {
-      type: Boolean,
-      default: false
+    createdBy: {
+      type: String,
+      enum: ["proUser", "admin", "therapist"],
+      default: "admin"
     }
   },
   { timestamps: true }
