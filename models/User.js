@@ -7,6 +7,10 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    profileImage: {
+      type: String,
+      default: 'https://res.cloudinary.com/dqj0xgk8v/image/upload/v1698236482/DefaultProfileImage.png',
+    },
     email: {
       type: String,
       required: true,
@@ -16,11 +20,16 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    pro: {
+    savedExercises: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'Exercise',
+      default: [],
+    },
+    membership: {
       type: {
         type: String,
-        enum: [null, 'monthly', 'yearly'],
-        default: null,
+        enum: ["free", 'monthly', 'yearly'],
+        default: "free",
       },
       paymentDate: {
         type: Date,

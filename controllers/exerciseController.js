@@ -1,6 +1,5 @@
 const asyncHandler = require('express-async-handler');
-const Exercise = require('../models/exerciseModel');
-
+const Exercise = require('../models/Exercise');
 
 // @desc    Get one sample exercise from each category
 // @route   GET /exercises/samples
