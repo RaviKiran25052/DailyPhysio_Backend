@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isPro } = require('../middleware/authMiddleware');
-const { 
-  getExercises, 
+const { protect, isAdmin } = require('../middleware/authMiddleware');
+const {
+  getExercises,
+  getAllExercises,
   getExerciseById,
+  createExercise,
   updateExercise,
   deleteExercise,
   getFeaturedExercises,
@@ -12,7 +14,11 @@ const {
 
 // Setup routes
 router.route('/all')
-  .get(getExercises)
+  .get(getAllExercises)
+
+router.route('/')
+  .get(protect, isAdmin, getExercises)
+  .post(protect, isAdmin, createExercise);
 
 router.route('/category/:category')
   .get(getExercisesByCategory)
@@ -22,7 +28,7 @@ router.route('/featured')
 
 router.route('/:id')
   .get(getExerciseById)
-  .put(protect, updateExercise)
-  .delete(protect, deleteExercise);
+  .put(protect, isAdmin, updateExercise)
+  .delete(protect, isAdmin, deleteExercise);
 
 module.exports = router; 

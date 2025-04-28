@@ -3,7 +3,7 @@ const User = require('../models/userModel');
 const generateToken = require('../utils/generateToken');
 
 // @desc    Register a new user
-// @route   POST /api/users
+// @route   POST /users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -36,7 +36,7 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 // @desc    Auth user & get token
-// @route   POST /api/users/login
+// @route   POST /users/login
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -58,7 +58,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get user profile
-// @route   GET /api/users/profile
+// @route   GET /users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
@@ -77,7 +77,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 });
 
 // @desc    Update user profile
-// @route   PUT /api/users/profile
+// @route   PUT /users/profile
 // @access  Private
 const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
@@ -106,7 +106,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 });
 
 // @desc    Upgrade user to pro
-// @route   POST /api/users/upgrade
+// @route   POST /users/upgrade
 // @access  Private
 const upgradeUserToPro = asyncHandler(async (req, res) => {
   const { subscriptionType } = req.body;

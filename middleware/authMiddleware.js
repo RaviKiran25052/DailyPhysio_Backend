@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
+const Therapist = require('../models/Therapist');
 
 const protect = asyncHandler(async (req, res, next) => {
   let token;
@@ -30,14 +31,46 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-const isPro = (req, res, next) => {
-  if (req.user && req.user.pro && req.user.pro.type) {
-    next();
-  } else {
-    res.status(401);
-    throw new Error('Not authorized as a PRO user');
+const isTherapist = asyncHandler(async (req, res, next) => {
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      const therapist = await Therapist.findById(decoded.id).select('-password');
+
+      // Check if therapist exists
+      if (!therapist) {
+        res.status(404);
+        throw new Error('Therapist not found');
+      }
+
+      // Check if therapist status is active
+      if (therapist.status !== 'active') {
+        res.status(403);
+        throw new Error('Access denied. Account is not active');
+      }
+
+      req.therapist = therapist;
+      next();
+
+    } catch (error) {
+      console.error(error);
+      res.status(401);
+      throw new Error('Not authorized, token failed');
+    }
   }
-};
+
+  if (!token) {
+    res.status(401);
+    throw new Error('Not authorized, no token');
+  }
+});
 
 const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'isAdmin') {
@@ -48,4 +81,4 @@ const isAdmin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, isPro, isAdmin }; 
+module.exports = { protect, isTherapist, isAdmin }; 

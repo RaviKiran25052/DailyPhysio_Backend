@@ -3,7 +3,7 @@ const SavedExercise = require('../models/savedExerciseModel');
 const Exercise = require('../models/exerciseModel');
 
 // @desc    Get user's saved exercises
-// @route   GET /api/saved-exercises
+// @route   GET /saved-exercises
 // @access  Private
 const getUserSavedExercises = asyncHandler(async (req, res) => {
   const savedExercises = await SavedExercise.find({ userId: req.user._id })
@@ -13,7 +13,7 @@ const getUserSavedExercises = asyncHandler(async (req, res) => {
 });
 
 // @desc    Save an exercise for a user
-// @route   POST /api/saved-exercises
+// @route   POST /saved-exercises
 // @access  Private
 const saveExercise = asyncHandler(async (req, res) => {
   const { 
@@ -116,7 +116,7 @@ const saveExercise = asyncHandler(async (req, res) => {
 });
 
 // @desc    Update a saved exercise
-// @route   PUT /api/saved-exercises/:id
+// @route   PUT /saved-exercises/:id
 // @access  Private
 const updateSavedExercise = asyncHandler(async (req, res) => {
   const { 
@@ -163,7 +163,7 @@ const updateSavedExercise = asyncHandler(async (req, res) => {
 });
 
 // @desc    Delete a saved exercise
-// @route   DELETE /api/saved-exercises/:id
+// @route   DELETE /saved-exercises/:id
 // @access  Private
 const deleteSavedExercise = asyncHandler(async (req, res) => {
   const savedExercise = await SavedExercise.findById(req.params.id);
