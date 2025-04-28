@@ -81,10 +81,17 @@ const exerciseSchema = mongoose.Schema(
       type: Boolean,
       default: false
     },
-    createdBy: {
-      type: String,
-      enum: ["proUser", "admin", "therapist"],
-      default: "admin"
+    custom: {
+      createdBy: {
+        type: String,
+        enum: ["proUser", "admin", "therapist"],
+        default: "admin"
+      },
+      type: {
+        type: String,
+        enum: ["public", "private"],
+        default: "public"
+      },
     }
   },
   { timestamps: true }
