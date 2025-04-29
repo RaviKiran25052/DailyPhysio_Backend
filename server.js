@@ -7,7 +7,6 @@ const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 // Import routes
 const userRoutes = require('./routes/userRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
-const savedExerciseRoutes = require('./routes/savedExerciseRoutes');
 const adminRoutes = require('./routes/adminRoute');
 const therapistRoutes = require('./routes/therapistRoutes');
 
@@ -25,7 +24,6 @@ app.use(express.json());
 // Routes
 app.use('/hep2go/users', userRoutes);
 app.use('/hep2go/exercises', exerciseRoutes);
-app.use('/hep2go/saved-exercises', savedExerciseRoutes);
 app.use('/hep2go/therapist', therapistRoutes);
 app.use('/hep2go/admin', adminRoutes);
 

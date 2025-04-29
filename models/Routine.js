@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const savedExerciseSchema = mongoose.Schema(
+const RoutineSchema = mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -11,6 +11,10 @@ const savedExerciseSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: 'Exercise',
+    },
+    name: {
+      type: String,
+      required: true,
     },
     reps: {
       type: Number,
@@ -31,8 +35,8 @@ const savedExerciseSchema = mongoose.Schema(
       },
       type: {
         type: String,
-        enum: ['day', 'week', 'month'],
-        default: 'day',
+        enum: ['hour', 'day', 'week'],
+        default: 'hour',
       },
     },
   },
@@ -41,6 +45,6 @@ const savedExerciseSchema = mongoose.Schema(
   }
 );
 
-const SavedExercise = mongoose.model('SavedExercise', savedExerciseSchema);
+const Routine = mongoose.model('Routine', RoutineSchema);
 
-module.exports = SavedExercise; 
+module.exports = Routine;

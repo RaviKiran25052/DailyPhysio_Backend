@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
-const User = require('../models/userModel');
 const generateToken = require('../utils/generateToken');
+const User = require('../models/User');
 
 // @desc    Register a new user
 // @route   POST /users
@@ -64,12 +64,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (user) {
-    res.json({
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      pro: user.pro,
-    });
+    res.json(user);
   } else {
     res.status(404);
     throw new Error('User not found');
@@ -85,7 +80,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   if (user) {
     user.fullName = req.body.fullName || user.fullName;
     user.email = req.body.email || user.email;
-    
+
     if (req.body.password) {
       user.password = req.body.password;
     }

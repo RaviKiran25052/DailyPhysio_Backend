@@ -11,14 +11,24 @@ const {
   getFeaturedExercises,
   getExercisesByCategory
 } = require('../controllers/exerciseController');
+const multer = require('multer');
+
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // Setup routes
 router.route('/all')
-  .get(getAllExercises)
+  .get(protect, getAllExercises)
 
 router.route('/')
   .get(protect, isAdmin, getExercises)
-  .post(protect, isAdmin, createExercise);
+  .post(protect, isAdmin, upload.fields([
+    { name: 'images', maxCount: 10 },
+    { name: 'videos', maxCount: 5 }
+  ]),  createExercise);
 
 router.route('/category/:category')
   .get(getExercisesByCategory)
@@ -28,7 +38,10 @@ router.route('/featured')
 
 router.route('/:id')
   .get(getExerciseById)
-  .put(protect, isAdmin, updateExercise)
+  .put(protect, isAdmin, upload.fields([
+    { name: 'images', maxCount: 10 },
+    { name: 'videos', maxCount: 5 }
+  ]),  updateExercise)
   .delete(protect, isAdmin, deleteExercise);
 
 module.exports = router; 

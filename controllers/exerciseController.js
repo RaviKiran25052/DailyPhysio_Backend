@@ -1,13 +1,12 @@
 const asyncHandler = require('express-async-handler');
-const Exercise = require('../models/exerciseModel');
-
+const Exercise = require('../models/Exercise');
 
 // @desc    Get one sample exercise from each category
 // @route   GET /exercises/samples
 // @access  Public/Private (depends on premium content)
 const getFeaturedExercises = asyncHandler(async (req, res) => {
   // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type
+  const premiumFilter = req.user && req.user.membership && req.user.membership.type
     ? {}
     : { isPremium: false };
 
@@ -98,7 +97,7 @@ const getAllExercises = asyncHandler(async (req, res) => {
   const category = req.query.category ? { category: req.query.category } : {};
 
   // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type
+  const premiumFilter = req.user && req.user.membership && req.user.membership.type
     ? {}
     : { isPremium: false };
 
@@ -107,7 +106,8 @@ const getAllExercises = asyncHandler(async (req, res) => {
     ...premiumFilter
   })
   res.json({
-    exercises
+    exercises,
+    membership: req.user ? req.user.membership.type : null,
   });
 });
 
@@ -152,7 +152,7 @@ const getExercisesByCategory = asyncHandler(async (req, res) => {
   }
 
   // Filter out premium content for non-pro users
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type ? {} : { isPremium: false };
+  const premiumFilter = req.user && req.user.membership && req.user.membership.type ? {} : { isPremium: false };
 
   // Combine filters
   const finalQuery = {
@@ -196,7 +196,7 @@ const getExerciseById = asyncHandler(async (req, res) => {
 
   if (exercise) {
     // Check if exercise is premium and user is not pro
-    if (exercise.isPremium && (!req.user || !req.user.pro || !req.user.pro.type)) {
+    if (exercise.isPremium && (!req.user || !req.user.membership || !req.user.membership.type)) {
       res.status(403);
       throw new Error('This is a premium exercise. Upgrade to pro to access it.');
     }
@@ -215,8 +215,6 @@ const createExercise = asyncHandler(async (req, res) => {
     title,
     description,
     instruction,
-    video,
-    image,
     category,
     subCategory,
     position,
@@ -230,13 +228,29 @@ const createExercise = asyncHandler(async (req, res) => {
     throw new Error('Please fill all required fields');
   }
 
+  const imageFiles = req.files['images'] || [];
+  const videoFiles = req.files['videos'] || [];
+  
+  // Upload images and videos to Cloudinary with specific folder structure
+  const imageUrls = await uploadMultipleFiles(
+    imageFiles, 
+    'image', 
+    'hep2go/images'  // Updated folder path for images
+  );
+  
+  const videoUrls = await uploadMultipleFiles(
+    videoFiles, 
+    'video', 
+    'hep2go/videos'  // Updated folder path for videos
+  );
+
   // Create the exercise
   const exercise = await Exercise.create({
     title,
     description,
     instruction,
-    video: video || '',
-    image: image || '',
+    video: videoUrls,
+    image: imageUrls,
     category,
     subCategory,
     position,
