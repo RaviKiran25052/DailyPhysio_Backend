@@ -9,7 +9,7 @@ const userSchema = mongoose.Schema(
     },
     profileImage: {
       type: String,
-      default: 'https://res.cloudinary.com/dqj0xgk8v/image/upload/v1698236482/DefaultProfileImage.png',
+      default: 'https://res.cloudinary.com/dalzs7bc2/image/upload/v1745832555/Screenshot_2025-04-27_143829_zrew4x.png',
     },
     email: {
       type: String,
