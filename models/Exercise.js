@@ -30,7 +30,7 @@ const exerciseSchema = mongoose.Schema(
       type: Number,
       default: 1,
     },
-    complete: {
+    set: {
       type: Number,
       default: 1,
     },
@@ -74,7 +74,6 @@ const exerciseSchema = mongoose.Schema(
     },
     position: {
       type: String,
-      enum: ["Kneeling", "Prone", "Quadruped", "Side Lying", "Sitting", "Standing", "Supine"],
       required: true
     },
     isPremium: {
@@ -91,6 +90,11 @@ const exerciseSchema = mongoose.Schema(
         type: String,
         enum: ["public", "private"],
         default: "public"
+      },
+      creatorId : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: ['User', 'Therapist'],
+        required: true
       },
     }
   },
