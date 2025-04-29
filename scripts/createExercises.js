@@ -20,6 +20,10 @@ const exercisesData = [
 		category: "Ankle and Foot",
 		subCategory: "Elastic Band",
 		position: "Sitting",
+		custom: {
+			creatorId: "680be0413ae24b5bb123c3a1",
+			createdBy: "therapist"
+		}
 	},
 	{
 		title: "Foot Mobilization",
@@ -31,6 +35,10 @@ const exercisesData = [
 		subCategory: "Mobilization",
 		position: "Sitting",
 		isPremium: true,
+		custom: {
+			creatorId: "6810aee6a1f2a17a2855ad56",
+			createdBy: "proUser"
+		}
 	},
 
 	// Cervical

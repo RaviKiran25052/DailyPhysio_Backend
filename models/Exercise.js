@@ -92,9 +92,9 @@ const exerciseSchema = mongoose.Schema(
         default: "public"
       },
       creatorId : {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: ['User', 'Therapist'],
-        required: true
+        type: String,
+        required: true,
+        default: "6810c72345c37767e7b96674"
       },
     }
   },
