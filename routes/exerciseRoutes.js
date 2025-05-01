@@ -1,47 +1,40 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isAdmin } = require('../middleware/authMiddleware');
-const {
-  getExercises,
-  getAllExercises,
-  getExerciseById,
-  createExercise,
-  updateExercise,
-  deleteExercise,
-  getFeaturedExercises,
-  getExercisesByCategory
-} = require('../controllers/exerciseController');
+const { protect, isTherapist, isAdmin } = require('../middleware/authMiddleware');
+const { checkMembership } = require('../middleware/membershipMiddleware');
 const multer = require('multer');
 
+const {
+  getExerciseById,
+  getFeaturedExercises,
+  filterExercises,
+  getExercisesByCreator,
+  addToFavorites,
+  createExercise,
+  editExercise
+} = require('../controllers/exerciseController');
+
+// Setup multer for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
+const upload = multer({ storage });
 
-router.route('/getById/:id')
-  .get(getExerciseById)
-router.route('/all')
-  .get(getAllExercises)
-router.route('/category/:category')
-  .get(getExercisesByCategory)
-router.route('/featured')
-  .get(getFeaturedExercises)
+// Middleware for handling file uploads
+const uploadFiles = upload.fields([
+  { name: 'images', maxCount: 5 },
+  { name: 'videos', maxCount: 5 }
+]);
 
+// Public routes with membership check
+router.get('/featured', getFeaturedExercises);
+router.get('/filters', checkMembership, filterExercises);
+router.get('/creator/:id', checkMembership, getExercisesByCreator);
+router.get('/:id', checkMembership, getExerciseById);
 
-// admin
-router.route('/')
-  .get(protect, isAdmin, getExercises)
-  .post(protect, isAdmin, upload.fields([
-    { name: 'images', maxCount: 10 },
-    { name: 'videos', maxCount: 5 }
-  ]), createExercise);
+// Protected routes
+router.post('/favorite/:exId', protect, addToFavorites);
 
-router.route('/:id')
-  .put(protect, isAdmin, upload.fields([
-    { name: 'images', maxCount: 10 },
-    { name: 'videos', maxCount: 5 }
-  ]), updateExercise)
-  .delete(protect, isAdmin, deleteExercise);
+// Protected routes with file upload
+router.post('/add', [protect, uploadFiles], createExercise);
+router.put('/edit/:id', [protect, uploadFiles], editExercise);
 
-module.exports = router; 
+module.exports = router;
