@@ -1,18 +1,90 @@
 const asyncHandler = require('express-async-handler');
 const Exercise = require('../models/Exercise');
-const Therapist = require('../models/Therapist');
 const User = require('../models/User');
+const Therapist = require('../models/Therapist');
+const Followers = require('../models/Followers');
+const Favorites = require('../models/Favorites');
+const { uploadMultipleFiles } = require('../utils/cloudinary');
 
-// @desc    Get one sample exercise from each category
-// @route   GET /exercises/samples
-// @access  Public/Private (depends on premium content)
+// @desc    Get exercise by ID with data formatting based on user type
+// @route   GET /api/exercises/:id
+// @access  Public (with different responses based on membership)
+const getExerciseById = asyncHandler(async (req, res) => {
+  const exerciseId = req.params.id;
+  
+  // Find the exercise by ID
+  const exercise = await Exercise.findById(exerciseId);
+  
+  if (!exercise) {
+    res.status(404);
+    throw new Error('Exercise not found');
+  }
+  
+  // Increment views
+  exercise.views += 1;
+  await exercise.save();
+  
+  // Format response based on user type
+  let formattedExercise = { ...exercise.toObject() };
+  
+  // For normal users (non-pro), remove videos and check premium status
+  if (req.userType === 'normal' && exercise.isPremium) {
+    formattedExercise.video = [];
+  }
+  
+  // Get creator data
+  let creatorData = null;
+  if (exercise.custom.createdBy === 'therapist') {
+    const therapist = await Therapist.findById(exercise.custom.creatorId);
+    if (therapist) {
+      // Check if user is following this therapist
+      let isFollowing = false;
+      
+      if (req.user) {
+        const followerData = await Followers.findOne({ 
+          therapistId: exercise.custom.creatorId,
+          followers: { $in: [req.user._id] }
+        });
+        isFollowing = !!followerData;
+      }
+      
+      creatorData = {
+        id: therapist._id,
+        name: therapist.name,
+        specializations: therapist.specializations,
+        following: isFollowing
+      };
+    }
+  } else {
+    // For admin or proUser created exercises, use default data
+    creatorData = {
+      id: exercise.custom.creatorId,
+      name: 'HEP Admin',
+      specializations: ['Physical Therapy'],
+      following: false
+    };
+  }
+  
+  // Get related exercises based on category
+  const relatedExercises = await Exercise.find({ 
+    category: exercise.category,
+    _id: { $ne: exercise._id },
+    'custom.type': 'public' 
+  })
+  .limit(5)
+  .select('title image category');
+  
+  res.json({
+    exercise: formattedExercise,
+    creatorData,
+    relatedExercises
+  });
+});
+
+// @desc    Get featured exercises (1 from each category)
+// @route   GET /api/exercises/featured
+// @access  Public
 const getFeaturedExercises = asyncHandler(async (req, res) => {
-  // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.membership && req.user.membership.type
-    ? {}
-    : { isPremium: false };
-
-  // Get all available categories
   const categories = [
     'Ankle and Foot',
     'Cervical',
@@ -24,331 +96,306 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
     'Shoulder',
     'Special'
   ];
-
-  // Use aggregation to get one exercise from each category
-  const sampleExercises = await Promise.all(
-    categories.map(async (category) => {
-      // Find one exercise from current category that matches premium filter
-      const exercise = await Exercise.findOne({
-        category: category,
-        ...premiumFilter
-      });
-
-      return exercise;
+  
+  const featuredExercises = [];
+  
+  // Get one exercise from each category
+  for (const category of categories) {
+    const exercise = await Exercise.findOne({ 
+      category,
+      'custom.type': 'public'
     })
-  );
-
-  // Filter out any null results (in case a category has no exercises that match filters)
-  const validExercises = sampleExercises.filter(exercise => exercise !== null);
-
-  res.json({
-    exercises: validExercises,
-    total: validExercises.length
-  });
-});
-
-// @desc    Get exercises with pagination and filtering
-// @route   GET /api/exercises/?pageNumber=1&keyword=example&category=Ankle%20and%20Foot
-// @access  Protected (if premium content)
-const getExercises = asyncHandler(async (req, res) => {
-  const pageSize = 9;
-  const page = Number(req.query.pageNumber) || 1;
-
-  const keyword = req.query.keyword
-    ? {
-      title: {
-        $regex: req.query.keyword,
-        $options: 'i',
-      },
+    .sort({ views: -1 })
+    .limit(1);
+    
+    if (exercise) {
+      featuredExercises.push(exercise);
     }
-    : {};
-
-  const category = req.query.category ? { category: req.query.category } : {};
-  const isPremium = req.query.isPremium ? { isPremium: req.query.isPremium } : {};
-  const isCustom = req.query.isCustom ? { isCustom: req.query.isCustom } : {};
-
-  const count = await Exercise.countDocuments({
-    ...keyword,
-    ...category,
-    ...isPremium,
-    ...isCustom
-  });
-
-  const exercises = await Exercise.find({
-    ...keyword,
-    ...category,
-    ...isPremium,
-    ...isCustom
-  })
-    .limit(pageSize)
-    .skip(pageSize * (page - 1));
-
-  res.json({
-    exercises,
-    page,
-    pages: Math.ceil(count / pageSize),
-    total: count
-  });
+  }
+  
+  res.json(featuredExercises);
 });
 
-// @desc    Get all exercises
-// @route   GET /exercises/all
-// @access  Public
-const getAllExercises = asyncHandler(async (req, res) => {
-
-  // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.membership && req.user.membership.type
-    ? {}
-    : { isPremium: false };
-
-  const exercises = await Exercise.find({
-    ...premiumFilter
-  })
-  res.json(exercises);
-});
-
-// @desc    Get exercises by category with filtering and pagination
-// @route   GET /exercises/category/:category
-// @access  Public/Private (depending on premium content)
-
-const getExercisesByCategory = asyncHandler(async (req, res) => {
-  const category = req.params.category;
-  const pageSize = Number(req.query.pageSize) || 9;
-  const page = Number(req.query.page) || 1;
-
-  // Validate category
-  const validCategories = [
-    'Ankle and Foot',
-    'Cervical',
-    'Education',
-    'Elbow and Hand',
-    'Hip and Knee',
-    'Lumbar Thoracic',
-    'Oral Motor',
-    'Shoulder',
-    'Special'
-  ];
-
-  if (!validCategories.includes(category)) {
-    res.status(400);
-    throw new Error('Invalid category');
-  }
-
-  // Build the query
-  const query = { category };
-
-  // Optional subCategory filter
-  if (req.query.subCategory) {
-    query.subCategory = req.query.subCategory;
-  }
-
-  // Optional position filter
-  if (req.query.position) {
-    query.position = req.query.position;
-  }
-
-  // Filter out premium content for non-pro users
-  const premiumFilter = req.user && req.user.membership && req.user.membership.type ? {} : { isPremium: false };
-
-  // Combine filters
-  const finalQuery = {
-    ...query,
-    ...premiumFilter
-  };
-
-  // Add search query if provided
-  if (req.query.search) {
-    finalQuery.$or = [
-      { title: { $regex: req.query.search, $options: 'i' } },
-      { description: { $regex: req.query.search, $options: 'i' } }
+// @desc    Filter exercises based on query parameters
+// @route   GET /api/exercises/filters
+// @access  Public (with different responses based on membership)
+const filterExercises = asyncHandler(async (req, res) => {
+  const { category, subcategory, position, search } = req.query;
+  
+  // Build query object
+  const query = { 'custom.type': 'public' };
+  
+  if (category) query.category = category;
+  if (subcategory) query.subCategory = subcategory;
+  if (position) query.position = position;
+  if (search) {
+    query.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } }
     ];
   }
-
-  // Count the total number of matching exercises
-  const count = await Exercise.countDocuments(finalQuery);
-
-  // Fetch the exercises with pagination
-  const exercises = await Exercise.find(finalQuery)
-    .sort({ createdAt: -1 }) // Sort by newest first
-    .limit(pageSize)
-    .skip(pageSize * (page - 1));
-
-  // Return the exercises with pagination info
-  res.json({
-    exercises,
-    page,
-    pages: Math.ceil(count / pageSize),
-    total: count,
-    category,
-    hasMore: page * pageSize < count
+  
+  // Find exercises based on query
+  const exercises = await Exercise.find(query);
+  
+  // Format response based on user type
+  const formattedExercises = exercises.map(exercise => {
+    const exerciseObj = exercise.toObject();
+    
+    // For normal users, remove videos from premium exercises
+    if (req.userType === 'normal' && exercise.isPremium) {
+      exerciseObj.video = [];
+    }
+    
+    return exerciseObj;
   });
+  
+  res.json(formattedExercises);
 });
 
-// @desc    Get exercise by ID
-// @route   GET /exercises/:id
-// @access  Public/Private (Premium exercises require pro subscription)
-const getExerciseById = asyncHandler(async (req, res) => {
-  const exercise = await Exercise.findById(req.params.id);
-  const creator = exercise.custom || {};
-  let creatorData = {};
-  if (creator.createdBy === 'therapist') {
-    const therapist = await Therapist.findById(creator.creatorId).select('-password');
-    creatorData.name = therapist.name;
-    creatorData.specializations = therapist.specializations;
-  } else if (creator.createdBy === 'proUser') {
-    const user = await User.findById(creator.creatorId).select('-password');
-    creatorData.name = user.fullName;
-    creatorData.specializations = [];
-  }
-
-  if (exercise) {
-    // Check if exercise is premium and user is not pro
-    if (exercise.isPremium && (!req.user || !req.user.membership || !req.user.membership.type)) {
-      res.status(403);
-      throw new Error('This is a premium exercise. Upgrade to pro to access it.');
+// @desc    Get exercises by creator ID
+// @route   GET /api/exercises/creator/:id
+// @access  Public
+const getExercisesByCreator = asyncHandler(async (req, res) => {
+  const creatorId = req.params.id;
+  
+  const exercises = await Exercise.find({ 
+    'custom.creatorId': creatorId,
+    'custom.type': 'public'
+  });
+  
+  // Format response based on user type
+  const formattedExercises = exercises.map(exercise => {
+    const exerciseObj = exercise.toObject();
+    
+    // For normal users, remove videos from premium exercises
+    if (req.userType === 'normal' && exercise.isPremium) {
+      exerciseObj.video = [];
     }
-    const similarExercises = await Exercise.find({
-      category: exercise.category,
-      _id: { $ne: exercise._id } // Exclude the current exercise
-    }).limit(5); // Limit to 5 similar exercises
+    
+    return exerciseObj;
+  });
+  
+  res.json(formattedExercises);
+});
 
-    res.json({exercise, creatorData, similarExercises});
-  } else {
+// @desc    Add exercise to favorites
+// @route   POST /api/exercises/favorite/:exId
+// @access  Private
+const addToFavorites = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+  
+  const exerciseId = req.params.exId;
+  
+  // Check if exercise exists
+  const exercise = await Exercise.findById(exerciseId);
+  if (!exercise) {
     res.status(404);
     throw new Error('Exercise not found');
   }
+  
+  // Check if already in favorites
+  const existingFavorite = await Favorites.findOne({
+    userId: req.user._id,
+    exerciseId
+  });
+  
+  if (existingFavorite) {
+    res.status(400);
+    throw new Error('Exercise already in favorites');
+  }
+  
+  // Add to favorites
+  const favorite = await Favorites.create({
+    userId: req.user._id,
+    exerciseId
+  });
+  
+  // Increment favorites count
+  exercise.favorites += 1;
+  await exercise.save();
+  
+  res.status(201).json({ message: 'Added to favorites' });
 });
 
 // @desc    Create a new exercise
-// @route   POST /exercises
-// @access  Private/Admin
+// @route   POST /api/exercises/add
+// @access  Private (Pro Users, Therapists, Admins only)
 const createExercise = asyncHandler(async (req, res) => {
   const {
     title,
     description,
     instruction,
+    reps,
+    hold,
+    set,
+    perform,
     category,
     subCategory,
     position,
-    isPremium,
-    isCustom
+    isPremium
   } = req.body;
-
-  // Validate required fields
-  if (!title || !description || !instruction || !category || !subCategory || !position) {
-    res.status(400);
-    throw new Error('Please fill all required fields');
+  
+  // Check authorization
+  const isAuthorized = 
+    (req.user && req.user.membership.type !== 'free') || // Pro user
+    req.therapist || // Therapist
+    (req.user && req.user.role === 'isAdmin'); // Admin
+  
+  if (!isAuthorized) {
+    res.status(403);
+    throw new Error('Not authorized to create exercises');
   }
-
-  const imageFiles = req.files['images'] || [];
-  const videoFiles = req.files['videos'] || [];
-
-  // Upload images and videos to Cloudinary with specific folder structure
-  const imageUrls = await uploadMultipleFiles(
-    imageFiles,
-    'image',
-    'hep2go/images'  // Updated folder path for images
-  );
-
-  const videoUrls = await uploadMultipleFiles(
-    videoFiles,
-    'video',
-    'hep2go/videos'  // Updated folder path for videos
-  );
-
+  
+  // Determine creator type and ID
+  let createdBy = 'admin';
+  let creatorId = null; // Default admin ID
+  
+  if (req.therapist) {
+    createdBy = 'therapist';
+    creatorId = req.therapist._id;
+  } else if (req.user && req.user.membership.type !== 'free') {
+    createdBy = 'proUser';
+    creatorId = req.user._id;
+  } else if (req.user && req.user.role === 'isAdmin') {
+    createdBy = 'admin';
+    creatorId = req.user._id;
+  }
+  
+  // Handle file uploads (images and videos)
+  let imageUrls = [];
+  let videoUrls = [];
+  
+  if (req.files) {
+    if (req.files.images) {
+      imageUrls = await uploadMultipleFiles(req.files.images, 'image', 'hep2go/images');
+    }
+    
+    if (req.files.videos) {
+      videoUrls = await uploadMultipleFiles(req.files.videos, 'video', 'hep2go/videos');
+    }
+  }
+  
   // Create the exercise
   const exercise = await Exercise.create({
     title,
     description,
     instruction,
+    reps: reps || 1,
+    hold: hold || 1,
+    set: set || 1,
+    perform: perform || { count: 1, type: 'day' },
     video: videoUrls,
     image: imageUrls,
     category,
     subCategory,
     position,
     isPremium: isPremium || false,
-    isCustom: isCustom || false
+    custom: {
+      createdBy,
+      type: 'public',
+      creatorId
+    }
   });
-
-  if (exercise) {
-    res.status(201).json(exercise);
-  } else {
-    res.status(400);
-    throw new Error('Invalid exercise data');
-  }
+  
+  res.status(201).json(exercise);
 });
 
-// @desc    Update an exercise
-// @route   PUT /exercises/:id
-// @access  Private/Admin
-const updateExercise = asyncHandler(async (req, res) => {
+// @desc    Edit an existing exercise
+// @route   PUT /api/exercises/edit/:id
+// @access  Private (Creator of exercise, Admin)
+const editExercise = asyncHandler(async (req, res) => {
+  const exerciseId = req.params.id;
+  
+  // Find the exercise
+  const exercise = await Exercise.findById(exerciseId);
+  
+  if (!exercise) {
+    res.status(404);
+    throw new Error('Exercise not found');
+  }
+  
+  // Check authorization
+  let isAuthorized = false;
+  
+  if (req.user && req.user.role === 'isAdmin') {
+    // Admin can edit any exercise
+    isAuthorized = true;
+  } else if (req.therapist && exercise.custom.createdBy === 'therapist' && 
+             exercise.custom.creatorId.toString() === req.therapist._id.toString()) {
+    // Therapist can edit their own exercises
+    isAuthorized = true;
+  } else if (req.user && exercise.custom.createdBy === 'proUser' && 
+             exercise.custom.creatorId.toString() === req.user._id.toString()) {
+    // Pro user can edit their own exercises
+    isAuthorized = true;
+  }
+  
+  if (!isAuthorized) {
+    res.status(403);
+    throw new Error('Not authorized to edit this exercise');
+  }
+  
+  // Extract fields from request
   const {
     title,
     description,
     instruction,
-    video,
-    image,
+    reps,
+    hold,
+    set,
+    perform,
     category,
     subCategory,
     position,
-    isPremium,
+    isPremium
   } = req.body;
-
-  const exercise = await Exercise.findById(req.params.id);
-
-  if (exercise) {
-    // Allow admins to update any exercise, others only custom exercises
-    if (!req.user.role === 'isAdmin' && !exercise.isCustom) {
-      res.status(403);
-      throw new Error('Can only update custom exercises');
+  
+  // Handle file uploads (images and videos)
+  let imageUrls = [...(exercise.image || [])];
+  let videoUrls = [...(exercise.video || [])];
+  
+  if (req.files) {
+    if (req.files.images) {
+      const newImages = await uploadMultipleFiles(req.files.images, 'image', 'hep2go/images');
+      imageUrls = [...imageUrls, ...newImages];
     }
-
-    exercise.title = title || exercise.title;
-    exercise.description = description || exercise.description;
-    exercise.instruction = instruction || exercise.instruction;
-    exercise.video = video || exercise.video;
-    exercise.image = image || exercise.image;
-    exercise.category = category || exercise.category;
-    exercise.subCategory = subCategory || exercise.subCategory;
-    exercise.position = position || exercise.position;
-    exercise.isPremium = isPremium !== undefined ? isPremium : exercise.isPremium;
-
-    const updatedExercise = await exercise.save();
-    res.json(updatedExercise);
-  } else {
-    res.status(404);
-    throw new Error('Exercise not found');
-  }
-});
-
-// @desc    Delete an exercise
-// @route   DELETE /exercises/:id
-// @access  Private/Admin
-const deleteExercise = asyncHandler(async (req, res) => {
-  const exercise = await Exercise.findById(req.params.id);
-
-  if (exercise) {
-    // Allow admins to delete any exercise, others only custom exercises
-    if (!req.user.role === 'isAdmin' && !exercise.isCustom) {
-      res.status(403);
-      throw new Error('Can only delete custom exercises');
+    
+    if (req.files.videos) {
+      const newVideos = await uploadMultipleFiles(req.files.videos, 'video', 'hep2go/videos');
+      videoUrls = [...videoUrls, ...newVideos];
     }
-
-    await exercise.deleteOne();
-    res.json({ message: 'Exercise removed' });
-  } else {
-    res.status(404);
-    throw new Error('Exercise not found');
   }
+  
+  // Update the exercise
+  exercise.title = title || exercise.title;
+  exercise.description = description || exercise.description;
+  exercise.instruction = instruction || exercise.instruction;
+  exercise.reps = reps || exercise.reps;
+  exercise.hold = hold || exercise.hold;
+  exercise.set = set || exercise.set;
+  exercise.perform = perform || exercise.perform;
+  exercise.image = imageUrls;
+  exercise.video = videoUrls;
+  exercise.category = category || exercise.category;
+  exercise.subCategory = subCategory || exercise.subCategory;
+  exercise.position = position || exercise.position;
+  exercise.isPremium = isPremium !== undefined ? isPremium : exercise.isPremium;
+  
+  const updatedExercise = await exercise.save();
+  
+  res.json(updatedExercise);
 });
 
 module.exports = {
-  getExercises,
-  getAllExercises,
-  getFeaturedExercises,
-  getExercisesByCategory,
   getExerciseById,
+  getFeaturedExercises,
+  filterExercises,
+  getExercisesByCreator,
+  addToFavorites,
   createExercise,
-  updateExercise,
-  deleteExercise,
-}; 
+  editExercise
+};
