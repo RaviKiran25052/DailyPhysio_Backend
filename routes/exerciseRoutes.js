@@ -14,34 +14,34 @@ const {
 const multer = require('multer');
 
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// Setup routes
+router.route('/getById/:id')
+  .get(getExerciseById)
 router.route('/all')
-  .get(protect, getAllExercises)
+  .get(getAllExercises)
+router.route('/category/:category')
+  .get(getExercisesByCategory)
+router.route('/featured')
+  .get(getFeaturedExercises)
 
+
+// admin
 router.route('/')
   .get(protect, isAdmin, getExercises)
   .post(protect, isAdmin, upload.fields([
     { name: 'images', maxCount: 10 },
     { name: 'videos', maxCount: 5 }
-  ]),  createExercise);
-
-router.route('/category/:category')
-  .get(getExercisesByCategory)
-
-router.route('/featured')
-  .get(getFeaturedExercises)
+  ]), createExercise);
 
 router.route('/:id')
-  .get(getExerciseById)
   .put(protect, isAdmin, upload.fields([
     { name: 'images', maxCount: 10 },
     { name: 'videos', maxCount: 5 }
-  ]),  updateExercise)
+  ]), updateExercise)
   .delete(protect, isAdmin, deleteExercise);
 
 module.exports = router; 

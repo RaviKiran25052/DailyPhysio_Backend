@@ -90,7 +90,12 @@ const exerciseSchema = mongoose.Schema(
         type: String,
         enum: ["public", "private"],
         default: "public"
-      }
+      },
+      creatorId : {
+        type: String,
+        required: true,
+        default: "6810c72345c37767e7b96674"
+      },
     }
   },
   { timestamps: true }
