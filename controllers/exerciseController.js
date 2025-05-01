@@ -31,7 +31,6 @@ const getExerciseById = asyncHandler(async (req, res) => {
   if (req.userType === 'normal' && exercise.isPremium) {
     formattedExercise.video = [];
   }
-  
   // Get creator data
   let creatorData = null;
   if (exercise.custom.createdBy === 'therapist') {
