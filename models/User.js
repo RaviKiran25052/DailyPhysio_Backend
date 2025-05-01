@@ -36,10 +36,21 @@ const userSchema = mongoose.Schema(
         default: null,
       },
     },
-    role:{
-      type:String,
-      enum:["isAdmin","isUser"],
-      default:"isUser"
+    creator: {
+      createdBy: {
+        type: String,
+        enum: ["admin", "therapist"],
+        default: "admin"
+      },
+      createdById: {
+        type: String,
+        default: null,
+      },
+    },
+    role: {
+      type: String,
+      enum: ["isAdmin", "isUser"],
+      default: "isUser"
     },
   },
   {

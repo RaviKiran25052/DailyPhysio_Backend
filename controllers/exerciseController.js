@@ -1,12 +1,14 @@
 const asyncHandler = require('express-async-handler');
 const Exercise = require('../models/Exercise');
+const Therapist = require('../models/Therapist');
+const User = require('../models/User');
 
 // @desc    Get one sample exercise from each category
 // @route   GET /exercises/samples
 // @access  Public/Private (depends on premium content)
 const getFeaturedExercises = asyncHandler(async (req, res) => {
   // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type
+  const premiumFilter = req.user && req.user.membership && req.user.membership.type
     ? {}
     : { isPremium: false };
 
@@ -94,20 +96,15 @@ const getExercises = asyncHandler(async (req, res) => {
 // @access  Public
 const getAllExercises = asyncHandler(async (req, res) => {
 
-  const category = req.query.category ? { category: req.query.category } : {};
-
   // If user is not pro, filter out premium exercises
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type
+  const premiumFilter = req.user && req.user.membership && req.user.membership.type
     ? {}
     : { isPremium: false };
 
   const exercises = await Exercise.find({
-    ...category,
     ...premiumFilter
   })
-  res.json({
-    exercises
-  });
+  res.json(exercises);
 });
 
 // @desc    Get exercises by category with filtering and pagination
@@ -151,7 +148,7 @@ const getExercisesByCategory = asyncHandler(async (req, res) => {
   }
 
   // Filter out premium content for non-pro users
-  const premiumFilter = req.user && req.user.pro && req.user.pro.type ? {} : { isPremium: false };
+  const premiumFilter = req.user && req.user.membership && req.user.membership.type ? {} : { isPremium: false };
 
   // Combine filters
   const finalQuery = {
@@ -192,14 +189,30 @@ const getExercisesByCategory = asyncHandler(async (req, res) => {
 // @access  Public/Private (Premium exercises require pro subscription)
 const getExerciseById = asyncHandler(async (req, res) => {
   const exercise = await Exercise.findById(req.params.id);
+  const creator = exercise.custom || {};
+  let creatorData = {};
+  if (creator.createdBy === 'therapist') {
+    const therapist = await Therapist.findById(creator.creatorId).select('-password');
+    creatorData.name = therapist.name;
+    creatorData.specializations = therapist.specializations;
+  } else if (creator.createdBy === 'proUser') {
+    const user = await User.findById(creator.creatorId).select('-password');
+    creatorData.name = user.fullName;
+    creatorData.specializations = [];
+  }
 
   if (exercise) {
     // Check if exercise is premium and user is not pro
-    if (exercise.isPremium && (!req.user || !req.user.pro || !req.user.pro.type)) {
+    if (exercise.isPremium && (!req.user || !req.user.membership || !req.user.membership.type)) {
       res.status(403);
       throw new Error('This is a premium exercise. Upgrade to pro to access it.');
     }
-    res.json(exercise);
+    const similarExercises = await Exercise.find({
+      category: exercise.category,
+      _id: { $ne: exercise._id } // Exclude the current exercise
+    }).limit(5); // Limit to 5 similar exercises
+
+    res.json({exercise, creatorData, similarExercises});
   } else {
     res.status(404);
     throw new Error('Exercise not found');
@@ -214,8 +227,6 @@ const createExercise = asyncHandler(async (req, res) => {
     title,
     description,
     instruction,
-    video,
-    image,
     category,
     subCategory,
     position,
@@ -229,13 +240,29 @@ const createExercise = asyncHandler(async (req, res) => {
     throw new Error('Please fill all required fields');
   }
 
+  const imageFiles = req.files['images'] || [];
+  const videoFiles = req.files['videos'] || [];
+
+  // Upload images and videos to Cloudinary with specific folder structure
+  const imageUrls = await uploadMultipleFiles(
+    imageFiles,
+    'image',
+    'hep2go/images'  // Updated folder path for images
+  );
+
+  const videoUrls = await uploadMultipleFiles(
+    videoFiles,
+    'video',
+    'hep2go/videos'  // Updated folder path for videos
+  );
+
   // Create the exercise
   const exercise = await Exercise.create({
     title,
     description,
     instruction,
-    video: video || '',
-    image: image || '',
+    video: videoUrls,
+    image: imageUrls,
     category,
     subCategory,
     position,
