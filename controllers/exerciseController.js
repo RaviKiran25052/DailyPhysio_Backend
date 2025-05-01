@@ -31,7 +31,6 @@ const getExerciseById = asyncHandler(async (req, res) => {
   if (req.userType === 'normal' && exercise.isPremium) {
     formattedExercise.video = [];
   }
-  
   // Get creator data
   let creatorData = null;
   if (exercise.custom.createdBy === 'therapist') {
@@ -55,12 +54,22 @@ const getExerciseById = asyncHandler(async (req, res) => {
         following: isFollowing
       };
     }
+  } else if (exercise.custom.createdBy === 'proUser') {
+    const proUser = await User.findById(exercise.custom.creatorId);
+    if (proUser) {
+      creatorData = {
+        id: proUser._id,
+        name: proUser.fullName,
+        specializations: [],
+        following: false
+      };
+    }
   } else {
     // For admin or proUser created exercises, use default data
     creatorData = {
       id: exercise.custom.creatorId,
       name: 'HEP Admin',
-      specializations: ['Physical Therapy'],
+      specializations: [],
       following: false
     };
   }
@@ -124,7 +133,9 @@ const filterExercises = asyncHandler(async (req, res) => {
   
   // Build query object
   const query = { 'custom.type': 'public' };
-  
+  if (req.userType === 'normal') {
+    query.isPremium = false;
+  }
   if (category) query.category = category;
   if (subcategory) query.subCategory = subcategory;
   if (position) query.position = position;

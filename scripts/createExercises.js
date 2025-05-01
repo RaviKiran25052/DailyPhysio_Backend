@@ -36,7 +36,7 @@ const exercisesData = [
 		position: "Sitting",
 		isPremium: true,
 		custom: {
-			creatorId: "6810aee6a1f2a17a2855ad56",
+			creatorId: "68131dd86947d80bceb9147d",
 			createdBy: "proUser"
 		}
 	},
