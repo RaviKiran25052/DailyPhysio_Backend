@@ -90,12 +90,7 @@ const exerciseSchema = mongoose.Schema(
         type: String,
         enum: ["public", "private"],
         default: "public"
-      },
-      creatorId : {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: ['User', 'Therapist'],
-        required: true
-      },
+      }
     }
   },
   { timestamps: true }
