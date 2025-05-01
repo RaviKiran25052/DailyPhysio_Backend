@@ -21,12 +21,8 @@ const upload = multer({
 
 router.route('/getById/:id')
   .get(getExerciseById)
-
-// user
 router.route('/all')
-  .get(protect, getAllExercises)
-
-// public
+  .get(getAllExercises)
 router.route('/category/:category')
   .get(getExercisesByCategory)
 router.route('/featured')

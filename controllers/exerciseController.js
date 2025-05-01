@@ -104,10 +104,7 @@ const getAllExercises = asyncHandler(async (req, res) => {
   const exercises = await Exercise.find({
     ...premiumFilter
   })
-  res.json({
-    exercises,
-    membership: req.user ? req.user.membership.type : null,
-  });
+  res.json(exercises);
 });
 
 // @desc    Get exercises by category with filtering and pagination
