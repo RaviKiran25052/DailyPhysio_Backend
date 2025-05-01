@@ -9,6 +9,7 @@ const {
   getFeaturedExercises,
   filterExercises,
   getExercisesByCreator,
+  getFavorites,
   addToFavorites,
   createExercise,
   editExercise
@@ -31,7 +32,8 @@ router.get('/creator/:id', checkMembership, getExercisesByCreator);
 router.get('/:id', checkMembership, getExerciseById);
 
 // Protected routes
-router.post('/favorite/:exId', protect, addToFavorites);
+router.get('/favorites/:exId', protect, getFavorites);
+router.post('/favorites/:exId', protect, addToFavorites);
 
 // Protected routes with file upload
 router.post('/add', [protect, uploadFiles], createExercise);
