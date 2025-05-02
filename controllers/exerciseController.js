@@ -5,6 +5,7 @@ const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
 const Favorites = require('../models/Favorites');
 const { uploadMultipleFiles } = require('../utils/cloudinary');
+const mongoose = require('mongoose');
 
 // @desc    Get exercise by ID with data formatting based on user type
 // @route   GET /api/exercises/:id
@@ -40,28 +41,63 @@ const getExerciseById = asyncHandler(async (req, res) => {
       let isFollowing = false;
 
       if (req.user) {
+        // Check in the Followers model if the user is following this therapist
         const followerData = await Followers.findOne({
           therapistId: exercise.custom.creatorId,
           followers: { $in: [req.user._id] }
         });
-        isFollowing = !!followerData;
+        
+        // Also check in Following model from userController if it exists
+        const followingModelExists = mongoose.modelNames().includes('Following');
+        
+        if (followingModelExists) {
+          const Following = mongoose.model('Following');
+          const followingData = await Following.findOne({
+            userId: req.user._id,
+            therapistId: exercise.custom.creatorId
+          });
+          
+          // User is following if they exist in either model
+          isFollowing = !!followerData || !!followingData;
+        } else {
+          isFollowing = !!followerData;
+        }
       }
 
       creatorData = {
         id: therapist._id,
         name: therapist.name,
         specializations: therapist.specializations,
-        following: isFollowing
+        isFollowing: isFollowing,
+        type: 'therapist'
       };
     }
   } else if (exercise.custom.createdBy === 'proUser') {
     const proUser = await User.findById(exercise.custom.creatorId);
     if (proUser) {
+      // For pro users, check if the current user is following them if applicable
+      let isFollowing = false;
+      
+      if (req.user && req.user._id.toString() !== exercise.custom.creatorId.toString()) {
+        const followingModelExists = mongoose.modelNames().includes('Following');
+        
+        if (followingModelExists) {
+          const Following = mongoose.model('Following');
+          const followingData = await Following.findOne({
+            userId: req.user._id,
+            therapistId: exercise.custom.creatorId
+          });
+          
+          isFollowing = !!followingData;
+        }
+      }
+      
       creatorData = {
         id: proUser._id,
         name: proUser.fullName,
-        specializations: [],
-        following: false
+        specializations: proUser.specializations || [],
+        isFollowing: isFollowing,
+        type: 'proUser'
       };
     }
   } else {
@@ -70,7 +106,8 @@ const getExerciseById = asyncHandler(async (req, res) => {
       id: exercise.custom.creatorId,
       name: 'HEP Admin',
       specializations: [],
-      following: false
+      isFollowing: false,
+      type: 'admin'
     };
   }
 
