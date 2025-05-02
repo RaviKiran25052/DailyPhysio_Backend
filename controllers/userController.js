@@ -1,6 +1,31 @@
 const asyncHandler = require('express-async-handler');
 const generateToken = require('../utils/generateToken');
 const User = require('../models/User');
+const Favorites = require('../models/Favorites');
+const Exercise = require('../models/Exercise');
+const mongoose = require('mongoose');
+
+// Create Following model schema inline if it doesn't exist
+const FollowingSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User',
+    },
+    therapistId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User', // Assuming therapists are also stored in User model with role = "therapist"
+    }
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Check if Following model already exists to avoid overwriting
+const Following = mongoose.models.Following || mongoose.model('Following', FollowingSchema);
 
 // @desc    Register a new user
 // @route   POST /users
@@ -132,10 +157,216 @@ const upgradeUserToPro = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get user favorites
+// @route   GET /users/favorites
+// @access  Private
+const getFavorites = asyncHandler(async (req, res) => {
+  // Find favorites by user ID
+  const favorites = await Favorites.find({ userId: req.user._id }).populate('exerciseId');
+  
+  if (!favorites) {
+    res.status(404);
+    throw new Error('No favorites found');
+  }
+  
+  // Return the populated exercises as favorites
+  res.json(favorites.map(fav => fav.exerciseId));
+});
+
+// @desc    Add an exercise to favorites
+// @route   POST /users/favorites
+// @access  Private
+const addFavorite = asyncHandler(async (req, res) => {
+  const { exerciseId } = req.body;
+  
+  if (!exerciseId) {
+    res.status(400);
+    throw new Error('Exercise ID is required');
+  }
+  
+  // Check if exercise exists
+  const exercise = await Exercise.findById(exerciseId);
+  if (!exercise) {
+    res.status(404);
+    throw new Error('Exercise not found');
+  }
+  
+  // Check if already in favorites
+  const existingFavorite = await Favorites.findOne({ 
+    userId: req.user._id, 
+    exerciseId 
+  });
+  
+  if (existingFavorite) {
+    res.status(400);
+    throw new Error('Exercise already in favorites');
+  }
+  
+  // Add to favorites
+  const favorite = await Favorites.create({
+    userId: req.user._id,
+    exerciseId
+  });
+  
+  if (favorite) {
+    res.status(201).json({ message: 'Added to favorites', favorite });
+  } else {
+    res.status(400);
+    throw new Error('Failed to add to favorites');
+  }
+});
+
+// @desc    Remove an exercise from favorites
+// @route   DELETE /users/favorites/:id
+// @access  Private
+const removeFavorite = asyncHandler(async (req, res) => {
+  const exerciseId = req.params.id;
+  
+  // Find the favorite item
+  const favorite = await Favorites.findOne({ 
+    userId: req.user._id, 
+    exerciseId 
+  });
+  
+  if (!favorite) {
+    res.status(404);
+    throw new Error('Favorite not found');
+  }
+  
+  // Remove from favorites
+  await Favorites.deleteOne({ _id: favorite._id });
+  
+  res.json({ message: 'Removed from favorites' });
+});
+
+// @desc    Get therapists the user is following
+// @route   GET /users/following
+// @access  Private
+const getFollowing = asyncHandler(async (req, res) => {
+  // Find all therapists the user is following
+  const following = await Following.find({ userId: req.user._id })
+    .populate('therapistId', 'fullName email profileImage experience workingAt specializations address phoneNumber gender');
+  
+  if (!following || following.length === 0) {
+    return res.json([]);
+  }
+  
+  // Extract therapist details
+  const therapists = following.map(follow => follow.therapistId);
+  
+  res.json(therapists);
+});
+
+// @desc    Follow a therapist
+// @route   POST /users/following
+// @access  Private
+const followTherapist = asyncHandler(async (req, res) => {
+  const { therapistId } = req.body;
+  
+  if (!therapistId) {
+    res.status(400);
+    throw new Error('Therapist ID is required');
+  }
+  
+  // Check if therapist exists and is actually a therapist
+  const therapist = await User.findOne({ _id: therapistId, role: 'isTherapist' });
+  if (!therapist) {
+    res.status(404);
+    throw new Error('Therapist not found');
+  }
+  
+  // Check if already following
+  const existingFollow = await Following.findOne({ 
+    userId: req.user._id, 
+    therapistId 
+  });
+  
+  if (existingFollow) {
+    res.status(400);
+    throw new Error('Already following this therapist');
+  }
+  
+  // Create following record
+  const follow = await Following.create({
+    userId: req.user._id,
+    therapistId
+  });
+  
+  if (follow) {
+    res.status(201).json({ message: 'Now following therapist', follow });
+  } else {
+    res.status(400);
+    throw new Error('Failed to follow therapist');
+  }
+});
+
+// @desc    Unfollow a therapist
+// @route   DELETE /users/following/:therapistId
+// @access  Private
+const unfollowTherapist = asyncHandler(async (req, res) => {
+  const { therapistId } = req.params;
+  
+  // Find the following relationship
+  const follow = await Following.findOne({ 
+    userId: req.user._id, 
+    therapistId 
+  });
+  
+  if (!follow) {
+    res.status(404);
+    throw new Error('Not following this therapist');
+  }
+  
+  // Remove the following relationship
+  await Following.deleteOne({ _id: follow._id });
+  
+  res.json({ message: 'Unfollowed therapist' });
+});
+
+// @desc    Get exercises from a therapist
+// @route   GET /users/therapists/:therapistId/exercises
+// @access  Private
+const getTherapistExercises = asyncHandler(async (req, res) => {
+  const { therapistId } = req.params;
+  
+  // Check if therapist exists
+  const therapist = await User.findOne({ _id: therapistId, role: 'isTherapist' });
+  if (!therapist) {
+    res.status(404);
+    throw new Error('Therapist not found');
+  }
+  
+  // Check if user is following this therapist
+  const isFollowing = await Following.findOne({
+    userId: req.user._id,
+    therapistId
+  });
+  
+  if (!isFollowing) {
+    res.status(403);
+    throw new Error('You must follow this therapist to see their exercises');
+  }
+  
+  // Get exercises created by this therapist
+  const exercises = await Exercise.find({ 
+    'creator.createdBy': 'therapist',
+    'creator.createdById': therapistId 
+  });
+  
+  res.json(exercises);
+});
+
 module.exports = {
   registerUser,
   loginUser,
   getUserProfile,
   updateUserProfile,
   upgradeUserToPro,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  getFollowing,
+  followTherapist,
+  unfollowTherapist,
+  getTherapistExercises
 }; 

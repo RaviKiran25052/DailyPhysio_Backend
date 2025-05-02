@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Routine = require('../models/Routine');
 const Exercise = require('../models/Exercise');
+const User = require('../models/User');
 
 // @desc    Create a new routine
 // @route   POST /api/routines
@@ -13,6 +14,21 @@ const createRoutine = asyncHandler(async (req, res) => {
   if (!exercise) {
     res.status(404);
     throw new Error('Exercise not found');
+  }
+
+  // Get the user to check membership type
+  const user = await User.findById(req.user._id);
+  
+  // Check if the user is not a pro member (i.e., has free membership)
+  if (user.membership.type === 'free') {
+    // Count existing routines for this user
+    const routineCount = await Routine.countDocuments({ userId: req.user._id });
+    
+    // If user has 2 or more routines already, return error
+    if (routineCount >= 2) {
+      res.status(403);
+      throw new Error('Free users can only create 2 routines. Please upgrade to Pro for unlimited routines.');
+    }
   }
 
   // Create new routine
