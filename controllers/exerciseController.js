@@ -12,22 +12,17 @@ const mongoose = require('mongoose');
 // @access  Public (with different responses based on membership)
 const getExerciseById = asyncHandler(async (req, res) => {
   const exerciseId = req.params.id;
-
   // Find the exercise by ID
   const exercise = await Exercise.findById(exerciseId);
-
   if (!exercise) {
     res.status(404);
     throw new Error('Exercise not found');
   }
-
   // Increment views
   exercise.views += 1;
   await exercise.save();
-
   // Format response based on user type
   let formattedExercise = { ...exercise.toObject() };
-
   // For normal users (non-pro), remove videos and check premium status
   if (req.userType === 'normal' && exercise.isPremium) {
     formattedExercise.video = [];
@@ -39,31 +34,17 @@ const getExerciseById = asyncHandler(async (req, res) => {
     if (therapist) {
       // Check if user is following this therapist
       let isFollowing = false;
-
       if (req.user) {
         // Check in the Followers model if the user is following this therapist
         const followerData = await Followers.findOne({
-          therapistId: exercise.custom.creatorId,
+          therapistId: therapist._id,
           followers: { $in: [req.user._id] }
         });
-        
-        // Also check in Following model from userController if it exists
-        const followingModelExists = mongoose.modelNames().includes('Following');
-        
-        if (followingModelExists) {
-          const Following = mongoose.model('Following');
-          const followingData = await Following.findOne({
-            userId: req.user._id,
-            therapistId: exercise.custom.creatorId
-          });
-          
-          // User is following if they exist in either model
-          isFollowing = !!followerData || !!followingData;
-        } else {
-          isFollowing = !!followerData;
+
+        if (followerData) {
+          isFollowing = true;
         }
       }
-
       creatorData = {
         id: therapist._id,
         name: therapist.name,
@@ -75,23 +56,19 @@ const getExerciseById = asyncHandler(async (req, res) => {
   } else if (exercise.custom.createdBy === 'proUser') {
     const proUser = await User.findById(exercise.custom.creatorId);
     if (proUser) {
-      // For pro users, check if the current user is following them if applicable
+      // Check if user is following this proUser
       let isFollowing = false;
-      
-      if (req.user && req.user._id.toString() !== exercise.custom.creatorId.toString()) {
-        const followingModelExists = mongoose.modelNames().includes('Following');
-        
-        if (followingModelExists) {
-          const Following = mongoose.model('Following');
-          const followingData = await Following.findOne({
-            userId: req.user._id,
-            therapistId: exercise.custom.creatorId
-          });
-          
-          isFollowing = !!followingData;
+      if (req.user) {
+        // Check in the Followers model if the user is following this proUser
+        const followerData = await Followers.findOne({
+          therapistId: proUser._id,
+          followers: { $in: [req.user._id] }
+        });
+
+        if (followerData) {
+          isFollowing = true;
         }
       }
-      
       creatorData = {
         id: proUser._id,
         name: proUser.fullName,
@@ -104,13 +81,12 @@ const getExerciseById = asyncHandler(async (req, res) => {
     // For admin or proUser created exercises, use default data
     creatorData = {
       id: exercise.custom.creatorId,
-      name: 'HEP Admin',
+      name: 'Admin',
       specializations: [],
       isFollowing: false,
       type: 'admin'
     };
   }
-
   // Get related exercises based on category
   const relatedExercises = await Exercise.find({
     category: exercise.category,
@@ -119,7 +95,6 @@ const getExerciseById = asyncHandler(async (req, res) => {
   })
     .limit(5)
     .select('title image category');
-
   res.json({
     exercise: formattedExercise,
     creatorData,
@@ -207,24 +182,13 @@ const filterExercises = asyncHandler(async (req, res) => {
 const getExercisesByCreator = asyncHandler(async (req, res) => {
   const creatorId = req.params.id;
 
+  const creatorName = await Therapist.findById(creatorId).select('name')
   const exercises = await Exercise.find({
     'custom.creatorId': creatorId,
     'custom.type': 'public'
   });
 
-  // Format response based on user type
-  const formattedExercises = exercises.map(exercise => {
-    const exerciseObj = exercise.toObject();
-
-    // For normal users, remove videos from premium exercises
-    if (req.userType === 'normal' && exercise.isPremium) {
-      exerciseObj.video = [];
-    }
-
-    return exerciseObj;
-  });
-
-  res.json(formattedExercises);
+  res.json({ exercises, creatorName: creatorName.name });
 });
 
 const getFavorites = asyncHandler(async (req, res) => {
@@ -237,7 +201,6 @@ const getFavorites = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   // send status, if the exercise is already in favorites with the userId
   const favorite = await Favorites.findOne({ userId, exerciseId });
-  console.log(favorite);
   res.status(200).json({
     isFavorite: !!favorite,
     message: favorite ? 'Exercise is already in favorites' : 'Exercise is not in favorites'
