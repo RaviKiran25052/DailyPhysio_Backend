@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, protectAll3, checkPremiumAccess } = require('../middleware/authMiddleware');
+const { protectAll3, checkPremiumAccess, protectUser } = require('../middleware/authMiddleware');
 const multer = require('multer');
 
 const {
@@ -33,8 +33,8 @@ router.get('/creator/:id', protectAll3, getExercisesByCreator);
 
 // Protected routes
 router.route('/favorites/:exId')
-  .get(protect, getFavorites)
-  .post(protect, addToFavorites);
+  .get(protectUser, getFavorites)
+  .post(protectUser, addToFavorites);
 
 router.route('/')
   .get(checkPremiumAccess, getAllExercises)

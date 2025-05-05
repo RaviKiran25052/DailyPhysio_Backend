@@ -93,7 +93,6 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
   if (!creator) {
     creator = await User.findById(creatorId).select('fullName');
   }
-  console.log(creatorId);
 
   // If still not found, return 404
   if (!creator) {
@@ -170,19 +169,19 @@ const addToFavorites = asyncHandler(async (req, res) => {
 
 const getAllExercises = asyncHandler(async (req, res) => {
   const page = 1;
-  const limit = 9;  
-  
+  const limit = 9;
+
   // Execute query with pagination
   const exercises = await Exercise.find()
-  
+
   // Get total count for pagination metadata
   const totalExercises = await Exercise.countDocuments();
-  
+
   // Calculate pagination metadata
   const totalPages = Math.ceil(totalExercises / limit);
   const hasNextPage = page < totalPages;
   const hasPrevPage = page > 1;
-  
+
   // Send response with pagination metadata
   res.json({
     exercises,
@@ -222,7 +221,9 @@ const getExerciseById = asyncHandler(async (req, res) => {
   // Get creator data
   let creatorData = null;
   if (exercise.custom.createdBy === 'therapist') {
+    
     const therapist = await Therapist.findById(exercise.custom.creatorId);
+    console.log(exercise.custom);
     if (therapist) {
       // Check if user is following this therapist
       let isFollowing = false;
@@ -467,25 +468,25 @@ const editExercise = asyncHandler(async (req, res) => {
 const deleteExercise = asyncHandler(async (req, res) => {
   const exerciseId = req.params.id;
   const exercise = await Exercise.findById(exerciseId);
-  
+
   if (!exercise) {
     res.status(404);
     throw new Error('Exercise not found');
   }
-  
+
   const requesterId = req.therapist ? req.therapist._id : req.user._id;
   const isAdmin = req.user && req.user.role === 'isAdmin';
-  
+
   if (exercise.custom.creatorId.toString() !== requesterId.toString() && !isAdmin) {
     res.status(403);
     throw new Error('Not authorized to delete this exercise');
   }
-  
+
   await Exercise.findByIdAndDelete(exerciseId);
-  
-  res.status(200).json({ 
+
+  res.status(200).json({
     success: true,
-    message: "Exercise deleted successfully" 
+    message: "Exercise deleted successfully"
   });
 });
 

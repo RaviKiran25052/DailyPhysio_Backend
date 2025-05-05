@@ -259,7 +259,10 @@ const setupAdminAndExercises = async () => {
     // Add adminId to each exercise if needed
     const exercisesWithAdmin = exercisesData.map(exercise => ({
       ...exercise,
-      custom: { ...exercise?.custom, creatorId: adminId.toString() }
+      custom: {
+        ...exercise?.custom,
+        ...(exercise.custom?.createdBy === 'therapist' ? {} : { creatorId: adminId.toString() })
+      }
     }));
 
     // Insert exercises data
