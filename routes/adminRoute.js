@@ -13,7 +13,8 @@ const {
   getConsultations,
   getConsultationsByTherapist,
   updateConsultationStatus,
-  approveTherapist
+  approveTherapist,
+  getDashboardAnalytics
 } = require('../controllers/adminController')
 
 // Public route for admin login
@@ -21,6 +22,8 @@ router.post('/login', loginAdmin);
 
 // Protected admin routes - Dashboard
 router.get('/stats', protectAdmin, getAdminStats);
+
+router.get('/analytics', protectAdmin, getDashboardAnalytics);
 
 // Protected admin routes - User Management
 router.get('/users', protectAdmin, getUsers);

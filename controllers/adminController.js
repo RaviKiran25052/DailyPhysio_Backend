@@ -93,13 +93,13 @@ const getUsers = asyncHandler(async (req, res) => {
 // THERAPIST MANAGEMENT
 const approveTherapist = async (req, res) => {
   try {
-      const { id } = req.params;
-      
-      const therapist = await Therapist.findByIdAndUpdate(id, { status: req.body.state }, { new: true });
-      if (!therapist) return res.status(404).json({ message: 'Therapist not found' });
-      res.status(200).json(therapist);
+    const { id } = req.params;
+
+    const therapist = await Therapist.findByIdAndUpdate(id, { status: req.body.state }, { new: true });
+    if (!therapist) return res.status(404).json({ message: 'Therapist not found' });
+    res.status(200).json(therapist);
   } catch (error) {
-      res.status(400).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -352,6 +352,263 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
   }
 });
 
+const validCategories = ['Ankle and Foot', 'Cervical', 'Education', 'Elbow and Hand', 'Hip and Knee', 'Lumbar Thoracic', 'Oral Motor', 'Shoulder', 'Special'];
+const validPositions = ["Kneeling", "Prone", "Quadruped", "Side Lying", "Sitting", "Standing", "Supine"];
+const validSpecializations = ['Orthopedics', 'Neurology', 'Pediatric Therapy', 'Sports Medicine', 'Geriatric Care', 'Manual Therapy', 'Cardiopulmonary', 'Sports Rehabilitation', "Women's Health"];
+
+const getDashboardAnalytics = asyncHandler(async (req, res) => {
+  try {
+    // User analytics
+    const userStats = await getUserAnalytics();
+
+    // Exercise analytics
+    const exerciseStats = await getExerciseAnalytics();
+
+    // Therapist analytics
+    const therapistStats = await getTherapistAnalytics();
+
+    // Combine all analytics data
+    const dashboardData = {
+      users: userStats,
+      exercises: exerciseStats,
+      therapists: therapistStats,
+      timestamp: new Date()
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: dashboardData
+    });
+
+  } catch (error) {
+    console.error('Error fetching analytics data:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch analytics data',
+      error: error.message
+    });
+  }
+});
+
+// Helper function to get user analytics
+const getUserAnalytics = asyncHandler(async (req, res) => {
+  // Count regular and pro users
+  const regularUsersCount = await User.countDocuments({
+    'membership.type': 'free',
+    'email': { $ne: process.env.ADMIN_EMAIL || 'admin@example.com' }
+  });
+
+  const proUsersCount = await User.countDocuments({
+    'membership.type': { $in: ['monthly', 'yearly'] }
+  });
+
+  // Count users created by therapists
+  const therapistCreatedUsersCount = await User.countDocuments({
+    'creator.createdBy': 'therapist'
+  });
+
+  // Count public exercises created by pro users
+  const proUserExercisesCount = await Exercise.countDocuments({
+    'custom.createdBy': 'proUser',
+    'custom.type': 'public'
+  });
+
+  return {
+    regularUsersCount,
+    proUsersCount,
+    therapistCreatedUsersCount,
+    proUserExercisesCount
+  };
+});
+
+// Helper function to get exercise analytics
+const getExerciseAnalytics = asyncHandler(async (req, res) => {
+  // Count exercises by creator type
+  const creatorCounts = await Exercise.aggregate([
+    {
+      $group: {
+        _id: '$custom.createdBy',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Transform to more readable format
+  const exercisesByCreator = {};
+  creatorCounts.forEach(item => {
+    exercisesByCreator[item._id] = item.count;
+  });
+
+  // Ensure all creator types are represented
+  const creatorTypes = ['admin', 'therapist', 'proUser'];
+  creatorTypes.forEach(type => {
+    if (!exercisesByCreator[type]) {
+      exercisesByCreator[type] = 0;
+    }
+  });
+
+  // Count exercises by category
+  const categoryResults = await Exercise.aggregate([
+    {
+      $addFields: {
+        normalizedCategory: {
+          $cond: {
+            if: { $in: ['$category', validCategories] },
+            then: '$category',
+            else: 'Other'
+          }
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$normalizedCategory',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Transform category data
+  const categoryCounts = {};
+  validCategories.forEach(cat => {
+    categoryCounts[cat] = 0;
+  });
+  categoryCounts['Other'] = 0;
+
+  categoryResults.forEach(item => {
+    categoryCounts[item._id] = item.count;
+  });
+
+  // Count exercises by position
+  const positionResults = await Exercise.aggregate([
+    {
+      $addFields: {
+        normalizedPosition: {
+          $cond: {
+            if: { $in: ['$position', validPositions] },
+            then: '$position',
+            else: 'Other'
+          }
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$normalizedPosition',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Transform position data
+  const positionCounts = {};
+  validPositions.forEach(pos => {
+    positionCounts[pos] = 0;
+  });
+  positionCounts['Other'] = 0;
+
+  positionResults.forEach(item => {
+    positionCounts[item._id] = item.count;
+  });
+
+  // Count premium exercises
+  const premiumCount = await Exercise.countDocuments({ isPremium: true });
+  const freeCount = await Exercise.countDocuments({ isPremium: false });
+
+  return {
+    exercisesByCreator,
+    categoryCounts,
+    positionCounts,
+    premiumCount,
+    freeCount
+  };
+});
+
+// Helper function to get therapist analytics
+const getTherapistAnalytics = asyncHandler(async (req, res) => {
+  // Count therapists by status
+  const statusResults = await Therapist.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Transform status data
+  const statusCounts = {
+    active: 0,
+    inactive: 0,
+    rejected: 0,
+    pending: 0
+  };
+
+  statusResults.forEach(item => {
+    statusCounts[item._id] = item.count;
+  });
+
+  // Count therapists by gender
+  const genderResults = await Therapist.aggregate([
+    {
+      $group: {
+        _id: '$gender',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Transform gender data
+  const genderCounts = {
+    male: 0,
+    female: 0,
+    other: 0
+  };
+
+  genderResults.forEach(item => {
+    genderCounts[item._id] = item.count;
+  });
+
+  // Count therapists by specialization
+  const specializationResults = await Therapist.aggregate([
+    { $unwind: '$specializations' },
+    {
+      $addFields: {
+        normalizedSpecialization: {
+          $cond: {
+            if: { $in: ['$specializations', validSpecializations] },
+            then: '$specializations',
+            else: 'Other'
+          }
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$normalizedSpecialization',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Transform specialization data
+  const specializationCounts = {};
+  validSpecializations.forEach(spec => {
+    specializationCounts[spec] = 0;
+  });
+  specializationCounts['Other'] = 0;
+
+  specializationResults.forEach(item => {
+    specializationCounts[item._id] = item.count;
+  });
+
+  return {
+    statusCounts,
+    genderCounts,
+    specializationCounts
+  };
+});
+
 module.exports = {
   loginAdmin,
   getAdminStats,
@@ -364,5 +621,6 @@ module.exports = {
   getConsultations,
   getConsultationsByTherapist,
   updateConsultationStatus,
-  approveTherapist
+  approveTherapist,
+  getDashboardAnalytics
 }
