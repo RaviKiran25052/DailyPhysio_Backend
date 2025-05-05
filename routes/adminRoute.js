@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router();
-const { protect, isAdmin } = require('../middleware/authMiddleware');
+const { protectAdmin } = require('../middleware/authMiddleware');
 const {
   loginAdmin,
   getAdminStats,
@@ -20,27 +20,27 @@ const {
 router.post('/login', loginAdmin);
 
 // Protected admin routes - Dashboard
-router.get('/stats', protect, isAdmin, getAdminStats);
+router.get('/stats', protectAdmin, getAdminStats);
 
 // Protected admin routes - User Management
-router.get('/users', protect, isAdmin, getUsers);
+router.get('/users', protectAdmin, getUsers);
 
 // Protected admin routes - Therapist Management
 router.route('/therapists/all')
-  .get(protect, isAdmin, getAllTherapists)
+  .get(protectAdmin, getAllTherapists)
 
 router.route('/therapists')
-  .get(protect, isAdmin, getTherapists)
+  .get(protectAdmin, getTherapists)
 
 router.route('/therapists/:id')
-  .get(protect, isAdmin, getTherapistById)
-  .put(protect, isAdmin, updateTherapist)
-  .delete(protect, isAdmin, deleteTherapist);
+  .get(protectAdmin, getTherapistById)
+  .put(protectAdmin, updateTherapist)
+  .delete(protectAdmin, deleteTherapist);
 
-router.put('/therapists/:id/approve', protect, isAdmin, approveTherapist);
+router.put('/therapists/:id/approve', protectAdmin, approveTherapist);
 // Protected admin routes - Consultation Management
-router.get('/consultations', protect, isAdmin, getConsultations);
-router.get('/consultations/therapist/:id', protect, isAdmin, getConsultationsByTherapist);
-router.put('/consultations/:id/status', protect, isAdmin, updateConsultationStatus);
+router.get('/consultations', protectAdmin, getConsultations);
+router.get('/consultations/therapist/:id', protectAdmin, getConsultationsByTherapist);
+router.put('/consultations/:id/status', protectAdmin, updateConsultationStatus);
 
 module.exports = router

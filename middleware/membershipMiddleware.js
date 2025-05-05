@@ -1,13 +1,11 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
+const Therapist = require('../models/Therapist');
 
-// Middleware to check user membership type
-const checkMembership = asyncHandler(async (req, res, next) => {
+const checkPremiumAccess = asyncHandler(async (req, res, next) => {
   let token;
-  
-  // Set default user type as normal (non-pro)
-  req.userType = 'normal';
+  req.accessType = 'normal';
 
   if (
     req.headers.authorization &&
@@ -17,37 +15,45 @@ const checkMembership = asyncHandler(async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      const user = await User.findById(decoded.id).select('-password');
-      
-      // Check if user exists
-      if (!user) {
-        // Treat as normal user if not found
-        req.userType = 'normal';
+      const therapist = await Therapist.findById(decoded.id).select('-password');
+      if (therapist) {
+        req.accessType = 'therapist';
+        req.therapist = therapist;
         return next();
       }
       
-      // Check membership type
-      if (user.membership.type === 'monthly' || user.membership.type === 'yearly') {
-        // User is a pro user
-        req.userType = 'pro';
-        req.user = user;
-      } else {
-        // User with free membership is a normal user
-        req.userType = 'normal';
-        req.user = user;
+      const user = await User.findById(decoded.id).select('-password');
+      
+      if (!user) {
+        req.accessType = 'normal';
+        return next();
       }
       
+      if (user.role === 'isAdmin') {
+        req.accessType = 'admin';
+        req.user = user;
+        return next();
+      }
+      
+      if (user.membership && user.membership.type && user.membership.type !== 'free') {
+        req.accessType = 'premium';
+        req.user = user;
+      } else {
+        req.accessType = 'normal';
+        req.user = user;
+      }
       next();
     } catch (error) {
-      // If token verification fails, treat as normal user
-      req.userType = 'normal';
+      console.error('Token verification error:', error.message);
+      req.accessType = 'normal';
       next();
     }
   } else {
-    // No token, treat as normal user
-    req.userType = 'normal';
+    req.accessType = 'normal';
     next();
   }
 });
 
-module.exports = { checkMembership }; 
+module.exports = { 
+  checkPremiumAccess
+};

@@ -7,9 +7,7 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "dev": "nodemon server.js",
-    "adminSeed": "node scripts/createAdmin.js",
-    "exerciseSeed": "node scripts/createExercises.js",
-    "consultationSeed": "node scripts/createConsultation.js"
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
