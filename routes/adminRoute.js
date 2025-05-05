@@ -5,7 +5,6 @@ const {
   loginAdmin,
   getAdminStats,
   getUsers,
-  getAllTherapists,
   getTherapists,
   getTherapistById,
   updateTherapist,
@@ -29,9 +28,6 @@ router.get('/analytics', protectAdmin, getDashboardAnalytics);
 router.get('/users', protectAdmin, getUsers);
 
 // Protected admin routes - Therapist Management
-router.route('/therapists/all')
-  .get(protectAdmin, getAllTherapists)
-
 router.route('/therapists')
   .get(protectAdmin, getTherapists)
 

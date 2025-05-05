@@ -103,31 +103,19 @@ const approveTherapist = async (req, res) => {
   }
 };
 
-const getAllTherapists = asyncHandler(async (req, res) => {
-  try {
-    const therapists = await Therapist.find({});
-
-    res.json({
-      success: true,
-      therapists,
-    });
-  } catch (error) {
-    res.status(500);
-    throw new Error('Error retrieving therapists: ' + error.message);
-  }
-});
-
 // @desc    Get therapists
 // @route   GET /api/admin/therapists
 // @access  Private/Admin
 const getTherapists = asyncHandler(async (req, res) => {
   try {
-    const therapists = await Therapist.find({ status: 'active' });
-    const pendingCount = await Therapist.countDocuments({ status: 'pending' });
+    const therapists = await Therapist.find();
+    const pendingTherapists = therapists.filter(t => t.status === 'pending');
+    const pendingCount = pendingTherapists.length;
 
     res.json({
       success: true,
-      therapists,
+      therapists: therapists.filter(therapist => therapist.status !== 'pending'),
+      pendingTherapists,
       requestCount: pendingCount
     });
   } catch (error) {
@@ -398,9 +386,10 @@ const getUserAnalytics = asyncHandler(async (req, res) => {
     'email': { $ne: process.env.ADMIN_EMAIL || 'admin@example.com' }
   });
 
-  const proUsersCount = await User.countDocuments({
-    'membership.type': { $in: ['monthly', 'yearly'] }
-  });
+  const monthlyCount = await User.countDocuments({ 'membership.type': 'monthly' });
+  const yearlyCount = await User.countDocuments({ 'membership.type': 'yearly' });
+  const totalCount = monthlyCount + yearlyCount;
+
 
   // Count users created by therapists
   const therapistCreatedUsersCount = await User.countDocuments({
@@ -415,7 +404,9 @@ const getUserAnalytics = asyncHandler(async (req, res) => {
 
   return {
     regularUsersCount,
-    proUsersCount,
+    proUsersCount: totalCount,
+    monthlyCount,
+    yearlyCount,
     therapistCreatedUsersCount,
     proUserExercisesCount
   };
@@ -541,12 +532,19 @@ const getTherapistAnalytics = asyncHandler(async (req, res) => {
     active: 0,
     inactive: 0,
     rejected: 0,
-    pending: 0
+    pending: 0,
+    total: 0
   };
 
   statusResults.forEach(item => {
     statusCounts[item._id] = item.count;
   });
+
+  statusCounts.total =
+    (statusCounts.active || 0) +
+    (statusCounts.inactive || 0) +
+    (statusCounts.rejected || 0);
+
 
   // Count therapists by gender
   const genderResults = await Therapist.aggregate([
@@ -613,7 +611,6 @@ module.exports = {
   loginAdmin,
   getAdminStats,
   getUsers,
-  getAllTherapists,
   getTherapists,
   getTherapistById,
   updateTherapist,
