@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protectUser } = require('../middleware/authMiddleware');
 const {
   createRoutine,
   getRoutinesByUserId,
@@ -8,8 +8,8 @@ const {
   deleteRoutine
 } = require('../controllers/routineController');
 
-// All routes are protected and require authentication
-router.use(protect);
+// All routes are protectUsered and require authentication
+router.use(protectUser);
 
 // Create a new routine
 router.post('/', createRoutine);

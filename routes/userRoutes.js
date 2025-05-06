@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protectUser } = require('../middleware/authMiddleware');
 const { 
   registerUser, 
   loginUser, 
@@ -20,23 +20,23 @@ const {
 router.route('/register').post(registerUser);
 router.post('/login', loginUser);
 router.route('/profile')
-  .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
-router.route('/upgrade').post(protect, upgradeUserToPro);
+  .get(protectUser, getUserProfile)
+  .put(protectUser, updateUserProfile);
+router.route('/upgrade').post(protectUser, upgradeUserToPro);
 
 // Favorites routes
 router.route('/favorites')
-  .get(protect, getFavorites)
-  .post(protect, addFavorite);
-router.route('/favorites/:id').delete(protect, removeFavorite);
+  .get(protectUser, getFavorites)
+  .post(protectUser, addFavorite);
+router.route('/favorites/:id').delete(protectUser, removeFavorite);
 
 // Following routes
 router.route('/following')
-  .get(protect, getFollowing)
-  .post(protect, followTherapist);
+  .get(protectUser, getFollowing)
+  .post(protectUser, followTherapist);
 router.route('/following/:therapistId')
-  .delete(protect, unfollowTherapist);
+  .delete(protectUser, unfollowTherapist);
 router.route('/therapists/:therapistId/exercises')
-  .get(protect, getTherapistExercises);
+  .get(protectUser, getTherapistExercises);
 
 module.exports = router; 

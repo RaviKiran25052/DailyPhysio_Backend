@@ -165,12 +165,12 @@ const upgradeUserToPro = asyncHandler(async (req, res) => {
 const getFavorites = asyncHandler(async (req, res) => {
   // Find favorites by user ID
   const favorites = await Favorites.find({ userId: req.user._id }).populate('exerciseId');
-  
+
   if (!favorites) {
     res.status(404);
     throw new Error('No favorites found');
   }
-  
+
   // Return the populated exercises as favorites
   res.json(favorites.map(fav => fav.exerciseId));
 });
@@ -180,36 +180,36 @@ const getFavorites = asyncHandler(async (req, res) => {
 // @access  Private
 const addFavorite = asyncHandler(async (req, res) => {
   const { exerciseId } = req.body;
-  
+
   if (!exerciseId) {
     res.status(400);
     throw new Error('Exercise ID is required');
   }
-  
+
   // Check if exercise exists
   const exercise = await Exercise.findById(exerciseId);
   if (!exercise) {
     res.status(404);
     throw new Error('Exercise not found');
   }
-  
+
   // Check if already in favorites
-  const existingFavorite = await Favorites.findOne({ 
-    userId: req.user._id, 
-    exerciseId 
+  const existingFavorite = await Favorites.findOne({
+    userId: req.user._id,
+    exerciseId
   });
-  
+
   if (existingFavorite) {
     res.status(400);
     throw new Error('Exercise already in favorites');
   }
-  
+
   // Add to favorites
   const favorite = await Favorites.create({
     userId: req.user._id,
     exerciseId
   });
-  
+
   if (favorite) {
     res.status(201).json({ message: 'Added to favorites', favorite });
   } else {
@@ -223,28 +223,28 @@ const addFavorite = asyncHandler(async (req, res) => {
 // @access  Private
 const removeFavorite = asyncHandler(async (req, res) => {
   const exerciseId = req.params.id;
-  
+
   // Find the favorite item
-  const favorite = await Favorites.findOne({ 
-    userId: req.user._id, 
-    exerciseId 
+  const favorite = await Favorites.findOne({
+    userId: req.user._id,
+    exerciseId
   });
-  
+
   if (!favorite) {
     res.status(404);
     throw new Error('Favorite not found');
   }
-  
+
   // Remove from favorites
   await Favorites.deleteOne({ _id: favorite._id });
-  
+
   // Decrement the favorites count in the Exercise schema
   await Exercise.findByIdAndUpdate(
     exerciseId,
     { $inc: { favorites: -1 } },
     { new: true }
   );
-  
+
   res.json({ message: 'Removed from favorites' });
 });
 
@@ -252,17 +252,24 @@ const removeFavorite = asyncHandler(async (req, res) => {
 // @route   GET /users/following
 // @access  Private
 const getFollowing = asyncHandler(async (req, res) => {
-  // Find all therapists the user is following
-  const following = await Followers.find({ userId: req.user._id })
-    .populate('therapistId', 'fullName email profileImage experience workingAt specializations address phoneNumber gender');
-  
-  if (!following || followerFollowers.length === 0) {
+
+  // fetch all the therapists, in which the user is a followers array
+  const followerFollowers = await Followers.find({
+    followers: req.user._id
+  });
+
+  if (followerFollowers.length === 0) {
     return res.json([]);
   }
-  
+
   // Extract therapist details
-  const therapists = followerFollowers.map(follow => follow.therapistId);
-  
+  const therapists = await Promise.all(
+    followerFollowers.map(async (follow) => {
+      const therapist = await Therapist.findById(follow.therapistId);
+      return therapist;
+    })
+  );
+
   res.json(therapists);
 });
 
@@ -271,37 +278,37 @@ const getFollowing = asyncHandler(async (req, res) => {
 // @access  Private
 const followTherapist = asyncHandler(async (req, res) => {
   const { therapistId } = req.body;
-  
+
   if (!therapistId) {
     res.status(400);
     throw new Error('Therapist ID is required');
   }
-  
+
   // Check if therapist exists and is actually a therapist
   const therapist = await Therapist.findOne({ _id: therapistId });
-  
+
   if (!therapist) {
     res.status(404);
     throw new Error('Therapist not found');
   }
-  
+
   // Check if already following
-  const existingFollow = await Followers.findOne({ 
-    userId: req.user._id, 
-    therapistId 
+  const existingFollow = await Followers.findOne({
+    userId: req.user._id,
+    therapistId
   });
-  
+
   if (existingFollow) {
     res.status(400);
     throw new Error('Already following this therapist');
   }
-  
+
   // Create following record
   const follow = await Followers.create({
     therapistId,
     followers: [req.user._id]
   });
-  
+
   if (follow) {
     res.status(201).json({ message: 'Now following therapist', follow });
   } else {
@@ -315,21 +322,21 @@ const followTherapist = asyncHandler(async (req, res) => {
 // @access  Private
 const unfollowTherapist = asyncHandler(async (req, res) => {
   const { therapistId } = req.params;
-  
+
   // Find the following relationship
-  const follow = await Followers.findOne({ 
-    userId: req.user._id, 
-    therapistId 
+  const follow = await Followers.findOne({
+    userId: req.user._id,
+    therapistId
   });
-  
+
   if (!follow) {
     res.status(404);
     throw new Error('Not following this therapist');
   }
-  
+
   // Remove the following relationship
   await Followers.deleteOne({ _id: follow._id });
-  
+
   res.json({ message: 'Unfollowed therapist' });
 });
 
@@ -338,31 +345,31 @@ const unfollowTherapist = asyncHandler(async (req, res) => {
 // @access  Private
 const getTherapistExercises = asyncHandler(async (req, res) => {
   const { therapistId } = req.params;
-  
+
   // Check if therapist exists
-  const therapist = await User.findOne({ _id: therapistId, role: 'isTherapist' });
+  const therapist = await Therapist.findOne({ _id: therapistId});
   if (!therapist) {
     res.status(404);
     throw new Error('Therapist not found');
   }
-  
+
   // Check if user is following this therapist
   const isFollowing = await Followers.findOne({
     userId: req.user._id,
     therapistId
   });
-  
+
   if (!isFollowing) {
     res.status(403);
     throw new Error('You must follow this therapist to see their exercises');
   }
-  
+
   // Get exercises created by this therapist
-  const exercises = await Exercise.find({ 
+  const exercises = await Exercise.find({
     'creator.createdBy': 'therapist',
-    'creator.createdById': therapistId 
+    'creator.createdById': therapistId
   });
-  
+
   res.json(exercises);
 });
 

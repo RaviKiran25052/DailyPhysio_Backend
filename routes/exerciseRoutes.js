@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isTherapist, isAdmin } = require('../middleware/authMiddleware');
-const { checkMembership } = require('../middleware/membershipMiddleware');
+const { protectAll3, checkPremiumAccess, protectUser } = require('../middleware/authMiddleware');
 const multer = require('multer');
 
 const {
@@ -12,7 +11,9 @@ const {
   getFavorites,
   addToFavorites,
   createExercise,
-  editExercise
+  editExercise,
+  deleteExercise,
+  getAllExercises
 } = require('../controllers/exerciseController');
 
 // Setup multer for file uploads
@@ -27,16 +28,21 @@ const uploadFiles = upload.fields([
 
 // Public routes with membership check
 router.get('/featured', getFeaturedExercises);
-router.get('/filters', checkMembership, filterExercises);
-router.get('/creator/:id', checkMembership, getExercisesByCreator);
-router.get('/:id', checkMembership, getExerciseById);
+router.get('/filters', checkPremiumAccess, filterExercises);
+router.get('/creator/:id', protectAll3, getExercisesByCreator);
 
 // Protected routes
-router.get('/favorites/:exId', protect, getFavorites);
-router.post('/favorites/:exId', protect, addToFavorites);
+router.route('/favorites/:exId')
+  .get(protectUser, getFavorites)
+  .post(protectUser, addToFavorites);
 
-// Protected routes with file upload
-router.post('/add', [protect, uploadFiles], createExercise);
-router.put('/edit/:id', [protect, uploadFiles], editExercise);
+router.route('/')
+  .get(checkPremiumAccess, getAllExercises)
+  .post([protectAll3, uploadFiles], createExercise);
+
+router.route('/:id')
+  .get(checkPremiumAccess, getExerciseById)
+  .put([protectAll3, uploadFiles], editExercise)
+  .delete(protectAll3, deleteExercise);
 
 module.exports = router;
