@@ -342,7 +342,6 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
 
 const validCategories = ['Ankle and Foot', 'Cervical', 'Education', 'Elbow and Hand', 'Hip and Knee', 'Lumbar Thoracic', 'Oral Motor', 'Shoulder', 'Special'];
 const validPositions = ["Kneeling", "Prone", "Quadruped", "Side Lying", "Sitting", "Standing", "Supine"];
-const validSpecializations = ['Orthopedics', 'Neurology', 'Pediatric Therapy', 'Sports Medicine', 'Geriatric Care', 'Manual Therapy', 'Cardiopulmonary', 'Sports Rehabilitation', "Women's Health"];
 
 const getDashboardAnalytics = asyncHandler(async (req, res) => {
   try {
