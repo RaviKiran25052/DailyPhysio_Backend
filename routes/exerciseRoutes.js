@@ -23,7 +23,7 @@ const upload = multer({ storage });
 // Middleware for handling file uploads
 const uploadFiles = upload.fields([
   { name: 'images', maxCount: 5 },
-  { name: 'videos', maxCount: 5 }
+  { name: 'video', maxCount: 1 }
 ]);
 
 // Public routes with membership check

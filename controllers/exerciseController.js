@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
 const Favorites = require('../models/Favorites');
-const { uploadMultipleFiles } = require('../utils/cloudinary');
+const { uploadMultipleFiles, uploadToCloudinary } = require('../utils/cloudinary');
 
 // @desc    Get featured exercises (1 from each category)
 // @route   GET /api/exercises/featured
@@ -71,7 +71,7 @@ const filterExercises = asyncHandler(async (req, res) => {
 
     // For normal users, remove videos from premium exercises
     if (req.accessType === 'normal' || exercise.isPremium) {
-      exerciseObj.video = [];
+      exerciseObj.video = null;
     }
 
     return exerciseObj;
@@ -155,7 +155,7 @@ const addToFavorites = asyncHandler(async (req, res) => {
   }
 
   // Add to favorites
-  const favorite = await Favorites.create({
+  await Favorites.create({
     userId: req.user._id,
     exerciseId
   });
@@ -216,12 +216,12 @@ const getExerciseById = asyncHandler(async (req, res) => {
   let formattedExercise = { ...exercise.toObject() };
   // For normal users (non-pro), remove videos and check premium status
   if (req.accessType === 'normal' || exercise.isPremium) {
-    formattedExercise.video = [];
+    formattedExercise.video = null;
   }
   // Get creator data
   let creatorData = null;
   if (exercise.custom.createdBy === 'therapist') {
-    
+
     const therapist = await Therapist.findById(exercise.custom.creatorId);
     console.log(exercise.custom);
     if (therapist) {
@@ -340,17 +340,16 @@ const createExercise = asyncHandler(async (req, res) => {
     creatorId = req.user._id;
   }
 
-  // Handle file uploads (images and videos)
   let imageUrls = [];
-  let videoUrls = [];
+  let videoUrl = null;
 
   if (req.files) {
     if (req.files.images) {
       imageUrls = await uploadMultipleFiles(req.files.images, 'image', 'hep2go/images');
     }
 
-    if (req.files.videos) {
-      videoUrls = await uploadMultipleFiles(req.files.videos, 'video', 'hep2go/videos');
+    if (req.files.video) {
+      videoUrl = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hep2go/videos');
     }
   }
 
@@ -363,7 +362,7 @@ const createExercise = asyncHandler(async (req, res) => {
     hold: hold || 1,
     set: set || 1,
     perform: perform || { count: 1, type: 'day' },
-    video: videoUrls,
+    video: videoUrl,
     image: imageUrls,
     category,
     subCategory,
@@ -431,7 +430,7 @@ const editExercise = asyncHandler(async (req, res) => {
 
   // Handle file uploads (images and videos)
   let imageUrls = [...(exercise.image || [])];
-  let videoUrls = [...(exercise.video || [])];
+  let videoUrl = null;
 
   if (req.files) {
     if (req.files.images) {
@@ -439,9 +438,9 @@ const editExercise = asyncHandler(async (req, res) => {
       imageUrls = [...imageUrls, ...newImages];
     }
 
-    if (req.files.videos) {
-      const newVideos = await uploadMultipleFiles(req.files.videos, 'video', 'hep2go/videos');
-      videoUrls = [...videoUrls, ...newVideos];
+    if (req.files.video) {
+      const newVideo = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hep2go/videos');
+      videoUrl = newVideo;
     }
   }
 
@@ -454,7 +453,7 @@ const editExercise = asyncHandler(async (req, res) => {
   exercise.set = set || exercise.set;
   exercise.perform = perform || exercise.perform;
   exercise.image = imageUrls;
-  exercise.video = videoUrls;
+  exercise.video = videoUrl;
   exercise.category = category || exercise.category;
   exercise.subCategory = subCategory || exercise.subCategory;
   exercise.position = position || exercise.position;
