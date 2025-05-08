@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { protectUser } = require('../middleware/authMiddleware');
-const { 
-  registerUser, 
-  loginUser, 
-  getUserProfile, 
-  updateUserProfile, 
+const {
+  registerUser,
+  loginUser,
+  getUserProfile,
+  updateUserProfile,
   upgradeUserToPro,
-  getFavorites,
+  getFavoritesData,
+  getFavorite,
   addFavorite,
   removeFavorite,
   getFollowing,
@@ -26,9 +27,11 @@ router.route('/upgrade').post(protectUser, upgradeUserToPro);
 
 // Favorites routes
 router.route('/favorites')
-  .get(protectUser, getFavorites)
+  .get(protectUser, getFavoritesData)
   .post(protectUser, addFavorite);
-router.route('/favorites/:id').delete(protectUser, removeFavorite);
+router.route('/favorites/:id')
+  .get(protectUser, getFavorite)
+  .delete(protectUser, removeFavorite);
 
 // Following routes
 router.route('/following')

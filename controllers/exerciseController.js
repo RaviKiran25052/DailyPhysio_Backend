@@ -106,65 +106,7 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
     'custom.type': 'public'
   });
 
-  res.json({ exercises, creatorName: creator });
-});
-
-const getFavorites = asyncHandler(async (req, res) => {
-  const exerciseId = req.params.exId;
-
-  if (!req.user) {
-    res.status(401);
-    throw new Error('Not authorized');
-  }
-  const userId = req.user._id;
-  // send status, if the exercise is already in favorites with the userId
-  const favorite = await Favorites.findOne({ userId, exerciseId });
-  res.status(200).json({
-    isFavorite: !!favorite,
-    message: favorite ? 'Exercise is already in favorites' : 'Exercise is not in favorites'
-  })
-});
-
-// @desc    Add exercise to favorites
-// @route   POST /api/exercises/favorite/:exId
-// @access  Private
-const addToFavorites = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    res.status(401);
-    throw new Error('Not authorized');
-  }
-
-  const exerciseId = req.params.exId;
-
-  // Check if exercise exists
-  const exercise = await Exercise.findById(exerciseId);
-  if (!exercise) {
-    res.status(404);
-    throw new Error('Exercise not found');
-  }
-
-  // Check if already in favorites
-  const existingFavorite = await Favorites.findOne({
-    userId: req.user._id,
-    exerciseId
-  });
-
-  if (existingFavorite) {
-    res.status(400);
-    throw new Error('Exercise already in favorites');
-  }
-
-  // Add to favorites
-  await Favorites.create({
-    userId: req.user._id,
-    exerciseId
-  });
-
-  // Increment favorites count
-  exercise.favorites += 1;
-  await exercise.save();
-
-  res.status(201).json({ message: 'Added to favorites' });
+  res.json({ exercises, creatorData: creator });
 });
 
 const getAllExercises = asyncHandler(async (req, res) => {
@@ -495,8 +437,6 @@ module.exports = {
   getFeaturedExercises,
   filterExercises,
   getExercisesByCreator,
-  getFavorites,
-  addToFavorites,
   getAllExercises,
   getExerciseById,
   createExercise,

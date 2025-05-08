@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protectAll3, checkPremiumAccess, protectUser } = require('../middleware/authMiddleware');
+const { protectAll3, checkPremiumAccess } = require('../middleware/authMiddleware');
 const multer = require('multer');
 
 const {
@@ -8,8 +8,6 @@ const {
   getFeaturedExercises,
   filterExercises,
   getExercisesByCreator,
-  getFavorites,
-  addToFavorites,
   createExercise,
   editExercise,
   deleteExercise,
@@ -30,11 +28,6 @@ const uploadFiles = upload.fields([
 router.get('/featured', getFeaturedExercises);
 router.get('/filters', checkPremiumAccess, filterExercises);
 router.get('/creator/:id', protectAll3, getExercisesByCreator);
-
-// Protected routes
-router.route('/favorites/:exId')
-  .get(protectUser, getFavorites)
-  .post(protectUser, addToFavorites);
 
 router.route('/')
   .get(checkPremiumAccess, getAllExercises)

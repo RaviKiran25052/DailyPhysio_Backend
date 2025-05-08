@@ -162,7 +162,7 @@ const upgradeUserToPro = asyncHandler(async (req, res) => {
 // @desc    Get user favorites
 // @route   GET /users/favorites
 // @access  Private
-const getFavorites = asyncHandler(async (req, res) => {
+const getFavoritesData = asyncHandler(async (req, res) => {
   // Find favorites by user ID
   const favorites = await Favorites.find({ userId: req.user._id }).populate('exerciseId');
 
@@ -173,6 +173,22 @@ const getFavorites = asyncHandler(async (req, res) => {
 
   // Return the populated exercises as favorites
   res.json(favorites.map(fav => fav.exerciseId));
+});
+
+const getFavorite = asyncHandler(async (req, res) => {
+  const exerciseId = req.params.id;
+
+  if (!req.user) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+  const userId = req.user._id;
+  // send status, if the exercise is already in favorites with the userId
+  const favorite = await Favorites.findOne({ userId, exerciseId });
+  res.status(200).json({
+    isFavorite: !!favorite,
+    message: favorite ? 'Exercise is already in favorites' : 'Exercise is not in favorites'
+  })
 });
 
 // @desc    Add an exercise to favorites
@@ -209,6 +225,10 @@ const addFavorite = asyncHandler(async (req, res) => {
     userId: req.user._id,
     exerciseId
   });
+
+  // Increment favorites count
+  exercise.favorites += 1;
+  await exercise.save();
 
   if (favorite) {
     res.status(201).json({ message: 'Added to favorites', favorite });
@@ -347,7 +367,7 @@ const getTherapistExercises = asyncHandler(async (req, res) => {
   const { therapistId } = req.params;
 
   // Check if therapist exists
-  const therapist = await Therapist.findOne({ _id: therapistId});
+  const therapist = await Therapist.findOne({ _id: therapistId });
   if (!therapist) {
     res.status(404);
     throw new Error('Therapist not found');
@@ -379,7 +399,8 @@ module.exports = {
   getUserProfile,
   updateUserProfile,
   upgradeUserToPro,
-  getFavorites,
+  getFavoritesData,
+  getFavorite,
   addFavorite,
   removeFavorite,
   getFollowing,
