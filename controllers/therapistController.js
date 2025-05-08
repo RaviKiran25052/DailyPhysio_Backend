@@ -100,7 +100,19 @@ exports.getAllExercises = async (req, res) => {
 // Fetch all consultations
 exports.getConsultations = async (req, res) => {
     try {
-        const consultations = await Consultation.find({ therapist_id: req.therapist._id });
+        const consultations = await Consultation.find({ therapist_id: req.therapist._id })
+            .populate({
+                path: 'patient_id',
+                model: 'User',
+                select: 'fullName email profileImage'
+            })
+            .populate({
+                path: 'recommendedExercises',
+                model: 'Exercise',
+                select: 'title description instruction image category subCategory position reps hold set perform'
+            })
+            .sort({ createdAt: -1 });
+
         res.status(200).json(consultations);
     } catch (error) {
         res.status(500).json({ message: error.message });
