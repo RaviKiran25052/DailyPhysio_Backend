@@ -349,7 +349,7 @@ const createExercise = asyncHandler(async (req, res) => {
     }
 
     if (req.files.video) {
-      videoUrl = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hep2go/videos');
+      videoUrl = await uploadToCloudinary(req.files.video[0], 'video', 'hep2go/videos');
     }
   }
 
@@ -439,7 +439,7 @@ const editExercise = asyncHandler(async (req, res) => {
     }
 
     if (req.files.video) {
-      const newVideo = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hep2go/videos');
+      const newVideo = await uploadToCloudinary(req.files.video[0], 'video', 'hep2go/videos');
       videoUrl = newVideo;
     }
   }
@@ -453,7 +453,9 @@ const editExercise = asyncHandler(async (req, res) => {
   exercise.set = set || exercise.set;
   exercise.perform = perform || exercise.perform;
   exercise.image = imageUrls;
-  exercise.video = videoUrl;
+  if (videoUrl !== null) {
+    exercise.video = videoUrl;
+  }
   exercise.category = category || exercise.category;
   exercise.subCategory = subCategory || exercise.subCategory;
   exercise.position = position || exercise.position;
