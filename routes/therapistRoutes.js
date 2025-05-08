@@ -13,6 +13,9 @@ router.route('/')
 	.put(protectTherapist, therapistController.updateTherapist)
 	.delete(protectTherapist, therapistController.deleteTherapist);
 
+// Analytics endpoint
+router.get('/analytics', protectTherapist, therapistController.getAnalytics);
+
 // Fetch all users
 router.get('/users', protectTherapist, therapistController.getAllUsers);
 

@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Exercise = require('../models/Exercise');
 const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
+const Followers = require('../models/Followers');
 
 // Create a new therapist
 exports.registerTherapist = async (req, res) => {
@@ -169,5 +170,79 @@ exports.checkConsultationExpiration = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getAnalytics = async (req, res) => {
+    try {
+        const therapistId = req.therapist._id;
+
+        // Get last 6 months consultations
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5); // -5 to include current month
+        sixMonthsAgo.setDate(1); // Start of month
+        sixMonthsAgo.setHours(0, 0, 0, 0);
+
+        // Get consultations for last 6 months
+        const consultations = await Consultation.find({
+            'therapist_id': therapistId,
+            'createdAt': { $gte: sixMonthsAgo }
+        }).sort({ createdAt: 1 });
+
+        // Get monthly consultation counts
+        const monthlyConsultations = Array(6).fill(0);
+        const currentMonth = new Date().getMonth();
+        
+        consultations.forEach(consultation => {
+            const consultationMonth = new Date(consultation.createdAt).getMonth();
+            const monthIndex = (consultationMonth - (currentMonth - 5) + 12) % 12;
+            if (monthIndex >= 0 && monthIndex < 6) {
+                monthlyConsultations[monthIndex]++;
+            }
+        });
+
+        // Get total consultations
+        const totalConsultations = await Consultation.countDocuments({
+            'therapist_id': therapistId
+        });
+
+        // Get followers count
+        const followersCount = await Followers.countDocuments({
+            'therapist_id': therapistId
+        });
+
+        // Get users created by therapist
+        const createdUsersCount = await User.countDocuments({
+            'creator.createdBy': 'therapist',
+            'creator.createdById': therapistId
+        });
+
+        // Get exercises created by therapist and their categories
+        const exercises = await Exercise.find({
+            'creator.createdBy': 'therapist',
+            'creator.createdById': therapistId
+        });
+
+        const exerciseCategories = {};
+        exercises.forEach(exercise => {
+            exerciseCategories[exercise.category] = (exerciseCategories[exercise.category] || 0) + 1;
+        });
+
+        res.json({
+            consultations: totalConsultations,
+            followers: followersCount,
+            createdUsers: createdUsersCount,
+            createdExercises: exercises.length,
+            monthlyConsultations,
+            exerciseCategories
+        });
+
+    } catch (error) {
+        console.error('Error in getAnalytics:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching analytics data',
+            error: error.message
+        });
     }
 };
