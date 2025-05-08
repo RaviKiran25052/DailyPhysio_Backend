@@ -254,8 +254,7 @@ const removeFavorite = asyncHandler(async (req, res) => {
 const getFollowing = asyncHandler(async (req, res) => {
   // Find all therapists the user is following
   const following = await Followers.find({ userId: req.user._id })
-    .populate('therapistId', 'fullName email profileImage experience workingAt specializations address phoneNumber gender');
-  
+    .populate('therapistId', 'fullName email profileImage experience working At specializations address phoneNumber gender');
   if (!following || followerFollowers.length === 0) {
     return res.json([]);
   }
