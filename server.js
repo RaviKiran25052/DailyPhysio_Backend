@@ -10,6 +10,7 @@ const exerciseRoutes = require('./routes/exerciseRoutes');
 const adminRoutes = require('./routes/adminRoute');
 const therapistRoutes = require('./routes/therapistRoutes');
 const routineRoutes = require('./routes/routineRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use('/hep2go/public', publicRoutes);
 app.use('/hep2go/users', userRoutes);
 app.use('/hep2go/exercises', exerciseRoutes);
 app.use('/hep2go/therapist', therapistRoutes);
