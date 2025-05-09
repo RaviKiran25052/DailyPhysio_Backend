@@ -27,4 +27,9 @@ router.route('/consultations')
 	.get(protectTherapist, therapistController.getConsultations)
 	.post(protectTherapist, therapistController.createConsultation);
 
+// Update and delete a consultation
+router.route('/consultations/:id')
+	.put(protectTherapist, therapistController.updateConsultation)
+	.delete(protectTherapist, therapistController.deleteConsultation);
+
 module.exports = router;
