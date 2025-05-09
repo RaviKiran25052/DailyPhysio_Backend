@@ -259,3 +259,69 @@ exports.getAnalytics = async (req, res) => {
         });
     }
 };
+
+// Update a consultation
+exports.updateConsultation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newExercises = [], activeDays, desp } = req.body;
+
+        const consultation = await Consultation.findById(id);
+        if (!consultation) {
+            return res.status(404).json({ message: "Consultation not found." });
+        }
+
+        // Calculate new expiration date based on creation date and activeDays
+        const expiresOn = new Date(consultation.createdAt);
+        expiresOn.setDate(expiresOn.getDate() + activeDays);
+
+        // Update consultation
+        const updatedConsultation = await Consultation.findByIdAndUpdate(
+            id,
+            {
+                $set: {
+                    'request.expiresOn': expiresOn,
+                    notes: desp,
+                },
+                $push: {
+                    recommendedExercises: { $each: newExercises }
+                }
+            },
+            { new: true }
+        ).populate({
+            path: 'patient_id',
+            model: 'User',
+            select: 'fullName email profileImage'
+        }).populate({
+            path: 'recommendedExercises',
+            model: 'Exercise',
+            select: 'title description instruction image category subCategory position reps hold set perform'
+        });
+
+        res.status(200).json(updatedConsultation);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// Delete a consultation
+exports.deleteConsultation = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const consultation = await Consultation.findById(id);
+        if (!consultation) {
+            return res.status(404).json({ message: "Consultation not found." });
+        }
+
+        // Check if the consultation belongs to the therapist
+        if (consultation.therapist_id.toString() !== req.therapist._id.toString()) {
+            return res.status(403).json({ message: "Not authorized to delete this consultation." });
+        }
+
+        await Consultation.findByIdAndDelete(id);
+        res.status(200).json({ message: "Consultation deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
