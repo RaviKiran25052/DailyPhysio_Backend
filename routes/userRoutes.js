@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protectUser } = require('../middleware/authMiddleware');
+const { protectUser, protectAdminOrTherapist } = require('../middleware/authMiddleware');
 const {
   registerUser,
   loginUser,
@@ -14,10 +14,13 @@ const {
   getFollowing,
   followTherapist,
   unfollowTherapist,
-  getTherapistExercises
+  getTherapistExercises,
+  getAllUsers
 } = require('../controllers/userController');
 
 // Setup routes
+
+router.route('/').get(protectAdminOrTherapist, getAllUsers)
 router.route('/register').post(registerUser);
 router.post('/login', loginUser);
 router.route('/profile')

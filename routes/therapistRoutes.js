@@ -16,9 +16,6 @@ router.route('/')
 // Analytics endpoint
 router.get('/analytics', protectTherapist, therapistController.getAnalytics);
 
-// Fetch all users
-router.get('/users', protectTherapist, therapistController.getAllUsers);
-
 // Fetch all exercises
 router.get('/exercises', protectTherapist, therapistController.getAllExercises);
 

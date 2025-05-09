@@ -137,6 +137,17 @@ const upgradeUserToPro = asyncHandler(async (req, res) => {
   }
 });
 
+
+// Fetch all users
+const getAllUsers = asyncHandler(async (req, res) => {
+  try {
+    const users = await User.find({ role: "isUser" }).select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @desc    Get user favorites
 // @route   GET /users/favorites
 // @access  Private
@@ -377,6 +388,7 @@ module.exports = {
   getUserProfile,
   updateUserProfile,
   upgradeUserToPro,
+  getAllUsers,
   getFavoritesData,
   getFavorite,
   addFavorite,
