@@ -221,10 +221,9 @@ exports.getAnalytics = async (req, res) => {
         });
 
         // Get followers count
-        const followersCount = await Followers.countDocuments({
-            'therapist_id': therapistId
+        const followers = await Followers.find({
+            'therapistId': therapistId
         });
-
         // Get users created by therapist
         const createdUsersCount = await User.countDocuments({
             'creator.createdBy': 'therapist',
@@ -244,7 +243,7 @@ exports.getAnalytics = async (req, res) => {
 
         res.json({
             consultations: totalConsultations,
-            followers: followersCount,
+            followers: followers.length,
             createdUsers: createdUsersCount,
             createdExercises: exercises.length,
             monthlyConsultations,
