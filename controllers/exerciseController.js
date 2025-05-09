@@ -3,7 +3,6 @@ const Exercise = require('../models/Exercise');
 const User = require('../models/User');
 const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
-const Favorites = require('../models/Favorites');
 const { uploadMultipleFiles, uploadToCloudinary } = require('../utils/cloudinary');
 
 // @desc    Get featured exercises (1 from each category)
@@ -87,11 +86,11 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
   const creatorId = req.params.id;
 
   // First, try to find the creator in the therapists collection
-  let creator = await Therapist.findById(creatorId).select('name');
+  let creator = await Therapist.findById(creatorId);
 
   // If not found in therapists, check in users collection
   if (!creator) {
-    creator = await User.findById(creatorId).select('fullName');
+    creator = await User.findById(creatorId);
   }
 
   // If still not found, return 404

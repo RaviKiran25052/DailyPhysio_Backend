@@ -80,7 +80,7 @@ exports.deleteTherapist = async (req, res) => {
 // Fetch all users
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({role: "isUser"}).select('-password');
+        const users = await User.find({ role: "isUser" }).select('-password');
         res.status(200).json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -122,17 +122,19 @@ exports.getConsultations = async (req, res) => {
 // Create a consultation entry
 exports.createConsultation = async (req, res) => {
     try {
-        const { userId, exercises = [], activeDays = 30, desp = '' } = req.body;
+        const { userId, exercises = [], activeDays = 14, desp = '' } = req.body;
 
         if (!userId) {
             return res.status(400).json({ message: "User ID is required." });
         }
+        const expiresOn = new Date();
+        expiresOn.setDate(expiresOn.getDate() + activeDays);
 
         const consultation = new Consultation({
             therapist_id: req.therapist._id,
             patient_id: userId,
             recommendedExercises: exercises,
-            request: { activeDays },
+            request: { expiresOn },
             notes: desp.trim()
         });
 
@@ -204,7 +206,7 @@ exports.getAnalytics = async (req, res) => {
         // Get monthly consultation counts
         const monthlyConsultations = Array(6).fill(0);
         const currentMonth = new Date().getMonth();
-        
+
         consultations.forEach(consultation => {
             const consultationMonth = new Date(consultation.createdAt).getMonth();
             const monthIndex = (consultationMonth - (currentMonth - 5) + 12) % 12;

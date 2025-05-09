@@ -16,6 +16,10 @@ const therapistSchema = new mongoose.Schema(
       lowercase: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
     },
+    profilePic: {
+      type: String,
+      default: "https://res.cloudinary.com/dalzs7bc2/image/upload/v1746784719/doc_jcxqwb.png"
+    },
     gender: {
       type: String,
       enum: ['male', 'female', 'other'],
@@ -30,6 +34,10 @@ const therapistSchema = new mongoose.Schema(
         },
         message: 'At least one specialization is required'
       }
+    },
+    bio: {
+      type: String,
+      default: ''
     },
     workingAt: {
       type: String,

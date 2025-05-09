@@ -5,7 +5,6 @@ const multer = require('multer');
 
 const {
   getExerciseById,
-  getFeaturedExercises,
   filterExercises,
   getExercisesByCreator,
   createExercise,
@@ -25,7 +24,6 @@ const uploadFiles = upload.fields([
 ]);
 
 // Public routes with membership check
-router.get('/featured', getFeaturedExercises);
 router.get('/filters', checkPremiumAccess, filterExercises);
 router.get('/creator/:id', protectAll3, getExercisesByCreator);
 
