@@ -264,7 +264,7 @@ exports.getAnalytics = async (req, res) => {
 exports.updateConsultation = async (req, res) => {
     try {
         const { id } = req.params;
-        const { newExercises = [], activeDays, desp } = req.body;
+        const { recommendedExercises, activeDays, desp } = req.body;
 
         const consultation = await Consultation.findById(id);
         if (!consultation) {
@@ -282,9 +282,7 @@ exports.updateConsultation = async (req, res) => {
                 $set: {
                     'request.expiresOn': expiresOn,
                     notes: desp,
-                },
-                $push: {
-                    recommendedExercises: { $each: newExercises }
+                    recommendedExercises: recommendedExercises
                 }
             },
             { new: true }
