@@ -327,3 +327,92 @@ exports.getCreatedUsers = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// Get therapist membership details
+exports.getMembership = async (req, res) => {
+    try {
+        const therapist = await Therapist.findById(req.therapist._id);
+        if (!therapist) {
+            return res.status(404).json({ message: 'Therapist not found' });
+        }
+
+        // If membership field doesn't exist, return default free plan
+        if (!therapist.membership) {
+            return res.status(200).json({
+                type: 'free',
+                isActive: true,
+                payments: []
+            });
+        }
+
+        res.status(200).json(therapist.membership);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Update therapist membership
+exports.updateMembership = async (req, res) => {
+    try {
+        const { type, paymentMethod } = req.body;
+        const therapist = await Therapist.findById(req.therapist._id);
+        
+        if (!therapist) {
+            return res.status(404).json({ message: 'Therapist not found' });
+        }
+
+        // Calculate expiry date based on plan type
+        const now = new Date();
+        let expiresAt = null;
+        let amount = 0;
+
+        if (type === 'monthly') {
+            expiresAt = new Date(now);
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+            amount = 19.99;
+        } else if (type === 'yearly') {
+            expiresAt = new Date(now);
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+            amount = 199.99;
+        }
+
+        // Create payment record for paid plans
+        const payment = type !== 'free' ? {
+            date: now,
+            amount,
+            plan: type,
+            method: paymentMethod,
+            status: 'completed'
+        } : null;
+
+        // Initialize membership if it doesn't exist
+        if (!therapist.membership) {
+            therapist.membership = {
+                type,
+                isActive: true,
+                startedAt: now,
+                expiresAt,
+                payments: payment ? [payment] : []
+            };
+        } else {
+            // Update existing membership
+            therapist.membership.type = type;
+            therapist.membership.isActive = true;
+            therapist.membership.expiresAt = expiresAt;
+            
+            // Add payment record for paid plans
+            if (payment) {
+                if (!therapist.membership.payments) {
+                    therapist.membership.payments = [payment];
+                } else {
+                    therapist.membership.payments.push(payment);
+                }
+            }
+        }
+
+        await therapist.save();
+        res.status(200).json(therapist.membership);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

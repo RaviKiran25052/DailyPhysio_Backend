@@ -32,4 +32,9 @@ router.route('/consultations/:id')
 	.put(protectTherapist, therapistController.updateConsultation)
 	.delete(protectTherapist, therapistController.deleteConsultation);
 
+// Membership management
+router.route('/membership')
+	.get(protectTherapist, therapistController.getMembership)
+	.put(protectTherapist, therapistController.updateMembership);
+
 module.exports = router;
