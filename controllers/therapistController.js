@@ -48,8 +48,8 @@ exports.loginTherapist = async (req, res) => {
 // Get therapists
 exports.getTherapist = async (req, res) => {
     try {
-        const therapists = await Therapist.find(req.therapist._id);
-        res.status(200).json(therapists);
+        const therapist = await Therapist.findById(req.therapist._id);
+        res.status(200).json(therapist);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
