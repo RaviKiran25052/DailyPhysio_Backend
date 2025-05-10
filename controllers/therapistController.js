@@ -80,7 +80,7 @@ exports.deleteTherapist = async (req, res) => {
 // Fetch all exercises
 exports.getAllExercises = async (req, res) => {
     try {
-        const exercises = await Exercise.find({ 'creator.createdBy': 'therapist', 'creator.createdById': req.therapist._id });
+        const exercises = await Exercise.find({ 'custom.creatorId': req.therapist._id.toString() });
         res.status(200).json(exercises);
     } catch (error) {
         res.status(500).json({ message: error.message });

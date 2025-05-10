@@ -164,7 +164,6 @@ const getExerciseById = asyncHandler(async (req, res) => {
   if (exercise.custom.createdBy === 'therapist') {
 
     const therapist = await Therapist.findById(exercise.custom.creatorId);
-    console.log(exercise.custom);
     if (therapist) {
       // Check if user is following this therapist
       let isFollowing = false;
@@ -366,7 +365,8 @@ const editExercise = asyncHandler(async (req, res) => {
     category,
     subCategory,
     position,
-    isPremium
+    isPremium,
+    custom
   } = req.body;
 
   // Handle file uploads (images and videos)
@@ -401,6 +401,7 @@ const editExercise = asyncHandler(async (req, res) => {
   exercise.subCategory = subCategory || exercise.subCategory;
   exercise.position = position || exercise.position;
   exercise.isPremium = isPremium !== undefined ? isPremium : exercise.isPremium;
+  exercise.custom = { ...exercise.custom, type: custom.type } || exercise.custom;
 
   const updatedExercise = await exercise.save();
 
