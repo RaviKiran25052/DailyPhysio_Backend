@@ -222,8 +222,8 @@ exports.getAnalytics = async (req, res) => {
 
         // Get exercises created by therapist and their categories
         const exercises = await Exercise.find({
-            'creator.createdBy': 'therapist',
-            'creator.createdById': therapistId
+            'custom.createdBy': 'therapist',
+            'custom.creatorId': therapistId
         });
 
         const exerciseCategories = {};
