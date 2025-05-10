@@ -80,7 +80,7 @@ exports.deleteTherapist = async (req, res) => {
 // Fetch all exercises
 exports.getAllExercises = async (req, res) => {
     try {
-        const exercises = await Exercise.find();
+        const exercises = await Exercise.find({ 'creator.createdBy': 'therapist', 'creator.createdById': req.therapist._id });
         res.status(200).json(exercises);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -309,6 +309,20 @@ exports.deleteConsultation = async (req, res) => {
 
         await Consultation.findByIdAndDelete(id);
         res.status(200).json({ message: "Consultation deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Get users created by therapist
+exports.getCreatedUsers = async (req, res) => {
+    try {
+        const users = await User.find({
+            'creator.createdBy': 'therapist',
+            'creator.createdById': req.therapist._id
+        }).select('-password');
+
+        res.status(200).json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
