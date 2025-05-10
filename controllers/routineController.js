@@ -25,9 +25,9 @@ const createRoutine = asyncHandler(async (req, res) => {
     const routineCount = await Routine.countDocuments({ userId: req.user._id });
     
     // If user has 2 or more routines already, return error
-    if (routineCount >= 2) {
+    if (routineCount >= 3) {
       res.status(403);
-      throw new Error('Free users can only create 2 routines. Please upgrade to Pro for unlimited routines.');
+      throw new Error('Free users can only create 3 routines. Please upgrade to Pro for unlimited routines.');
     }
   }
 

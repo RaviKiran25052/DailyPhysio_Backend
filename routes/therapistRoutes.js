@@ -13,8 +13,11 @@ router.route('/')
 	.put(protectTherapist, therapistController.updateTherapist)
 	.delete(protectTherapist, therapistController.deleteTherapist);
 
-// Fetch all users
-router.get('/users', protectTherapist, therapistController.getAllUsers);
+// Analytics endpoint
+router.get('/analytics', protectTherapist, therapistController.getAnalytics);
+
+// Fetch users created by therapist
+router.get('/users', protectTherapist, therapistController.getCreatedUsers);
 
 // Fetch all exercises
 router.get('/exercises', protectTherapist, therapistController.getAllExercises);
@@ -23,5 +26,10 @@ router.get('/exercises', protectTherapist, therapistController.getAllExercises);
 router.route('/consultations')
 	.get(protectTherapist, therapistController.getConsultations)
 	.post(protectTherapist, therapistController.createConsultation);
+
+// Update and delete a consultation
+router.route('/consultations/:id')
+	.put(protectTherapist, therapistController.updateConsultation)
+	.delete(protectTherapist, therapistController.deleteConsultation);
 
 module.exports = router;

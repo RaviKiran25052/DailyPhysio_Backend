@@ -4,7 +4,6 @@ const { protectAdmin } = require('../middleware/authMiddleware');
 const {
   loginAdmin,
   getAdminStats,
-  getUsers,
   getTherapists,
   getTherapistById,
   updateTherapist,
@@ -23,9 +22,6 @@ router.post('/login', loginAdmin);
 router.get('/stats', protectAdmin, getAdminStats);
 
 router.get('/analytics', protectAdmin, getDashboardAnalytics);
-
-// Protected admin routes - User Management
-router.get('/users', protectAdmin, getUsers);
 
 // Protected admin routes - Therapist Management
 router.route('/therapists')

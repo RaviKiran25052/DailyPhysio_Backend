@@ -25,9 +25,9 @@ const consultationSchema = new mongoose.Schema(
         enum: ['active', 'inactive'],
         default: 'active'
       },
-      activeDays: {
-        type: Number,
-        default: 0
+      expiresOn: {
+        type: Date,
+        default: () => new Date()
       },
     },
     notes: {

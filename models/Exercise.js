@@ -15,8 +15,8 @@ const exerciseSchema = mongoose.Schema(
       required: true
     },
     video: {
-      type: [String],
-      default: ['']
+      type: String,
+      default: ''
     },
     image: {
       type: [String],

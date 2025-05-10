@@ -3,8 +3,7 @@ const Exercise = require('../models/Exercise');
 const User = require('../models/User');
 const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
-const Favorites = require('../models/Favorites');
-const { uploadMultipleFiles } = require('../utils/cloudinary');
+const { uploadMultipleFiles, uploadToCloudinary } = require('../utils/cloudinary');
 
 // @desc    Get featured exercises (1 from each category)
 // @route   GET /api/exercises/featured
@@ -71,7 +70,7 @@ const filterExercises = asyncHandler(async (req, res) => {
 
     // For normal users, remove videos from premium exercises
     if (req.accessType === 'normal' || exercise.isPremium) {
-      exerciseObj.video = [];
+      exerciseObj.video = null;
     }
 
     return exerciseObj;
@@ -87,11 +86,11 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
   const creatorId = req.params.id;
 
   // First, try to find the creator in the therapists collection
-  let creator = await Therapist.findById(creatorId).select('name');
+  let creator = await Therapist.findById(creatorId);
 
   // If not found in therapists, check in users collection
   if (!creator) {
-    creator = await User.findById(creatorId).select('fullName');
+    creator = await User.findById(creatorId);
   }
 
   // If still not found, return 404
@@ -106,65 +105,7 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
     'custom.type': 'public'
   });
 
-  res.json({ exercises, creatorName: creator });
-});
-
-const getFavorites = asyncHandler(async (req, res) => {
-  const exerciseId = req.params.exId;
-
-  if (!req.user) {
-    res.status(401);
-    throw new Error('Not authorized');
-  }
-  const userId = req.user._id;
-  // send status, if the exercise is already in favorites with the userId
-  const favorite = await Favorites.findOne({ userId, exerciseId });
-  res.status(200).json({
-    isFavorite: !!favorite,
-    message: favorite ? 'Exercise is already in favorites' : 'Exercise is not in favorites'
-  })
-});
-
-// @desc    Add exercise to favorites
-// @route   POST /api/exercises/favorite/:exId
-// @access  Private
-const addToFavorites = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    res.status(401);
-    throw new Error('Not authorized');
-  }
-
-  const exerciseId = req.params.exId;
-
-  // Check if exercise exists
-  const exercise = await Exercise.findById(exerciseId);
-  if (!exercise) {
-    res.status(404);
-    throw new Error('Exercise not found');
-  }
-
-  // Check if already in favorites
-  const existingFavorite = await Favorites.findOne({
-    userId: req.user._id,
-    exerciseId
-  });
-
-  if (existingFavorite) {
-    res.status(400);
-    throw new Error('Exercise already in favorites');
-  }
-
-  // Add to favorites
-  const favorite = await Favorites.create({
-    userId: req.user._id,
-    exerciseId
-  });
-
-  // Increment favorites count
-  exercise.favorites += 1;
-  await exercise.save();
-
-  res.status(201).json({ message: 'Added to favorites' });
+  res.json({ exercises, creatorData: creator });
 });
 
 const getAllExercises = asyncHandler(async (req, res) => {
@@ -216,14 +157,13 @@ const getExerciseById = asyncHandler(async (req, res) => {
   let formattedExercise = { ...exercise.toObject() };
   // For normal users (non-pro), remove videos and check premium status
   if (req.accessType === 'normal' || exercise.isPremium) {
-    formattedExercise.video = [];
+    formattedExercise.video = null;
   }
   // Get creator data
   let creatorData = null;
   if (exercise.custom.createdBy === 'therapist') {
-    
+
     const therapist = await Therapist.findById(exercise.custom.creatorId);
-    console.log(exercise.custom);
     if (therapist) {
       // Check if user is following this therapist
       let isFollowing = false;
@@ -340,17 +280,16 @@ const createExercise = asyncHandler(async (req, res) => {
     creatorId = req.user._id;
   }
 
-  // Handle file uploads (images and videos)
   let imageUrls = [];
-  let videoUrls = [];
+  let videoUrl = null;
 
   if (req.files) {
     if (req.files.images) {
       imageUrls = await uploadMultipleFiles(req.files.images, 'image', 'hep2go/images');
     }
 
-    if (req.files.videos) {
-      videoUrls = await uploadMultipleFiles(req.files.videos, 'video', 'hep2go/videos');
+    if (req.files.video) {
+      videoUrl = await uploadToCloudinary(req.files.video[0], 'video', 'hep2go/videos');
     }
   }
 
@@ -363,7 +302,7 @@ const createExercise = asyncHandler(async (req, res) => {
     hold: hold || 1,
     set: set || 1,
     perform: perform || { count: 1, type: 'day' },
-    video: videoUrls,
+    video: videoUrl,
     image: imageUrls,
     category,
     subCategory,
@@ -426,12 +365,13 @@ const editExercise = asyncHandler(async (req, res) => {
     category,
     subCategory,
     position,
-    isPremium
+    isPremium,
+    custom
   } = req.body;
 
   // Handle file uploads (images and videos)
   let imageUrls = [...(exercise.image || [])];
-  let videoUrls = [...(exercise.video || [])];
+  let videoUrl = null;
 
   if (req.files) {
     if (req.files.images) {
@@ -439,9 +379,9 @@ const editExercise = asyncHandler(async (req, res) => {
       imageUrls = [...imageUrls, ...newImages];
     }
 
-    if (req.files.videos) {
-      const newVideos = await uploadMultipleFiles(req.files.videos, 'video', 'hep2go/videos');
-      videoUrls = [...videoUrls, ...newVideos];
+    if (req.files.video) {
+      const newVideo = await uploadToCloudinary(req.files.video[0], 'video', 'hep2go/videos');
+      videoUrl = newVideo;
     }
   }
 
@@ -454,11 +394,14 @@ const editExercise = asyncHandler(async (req, res) => {
   exercise.set = set || exercise.set;
   exercise.perform = perform || exercise.perform;
   exercise.image = imageUrls;
-  exercise.video = videoUrls;
+  if (videoUrl !== null) {
+    exercise.video = videoUrl;
+  }
   exercise.category = category || exercise.category;
   exercise.subCategory = subCategory || exercise.subCategory;
   exercise.position = position || exercise.position;
   exercise.isPremium = isPremium !== undefined ? isPremium : exercise.isPremium;
+  exercise.custom = { ...exercise.custom, type: custom.type } || exercise.custom;
 
   const updatedExercise = await exercise.save();
 
@@ -494,8 +437,6 @@ module.exports = {
   getFeaturedExercises,
   filterExercises,
   getExercisesByCreator,
-  getFavorites,
-  addToFavorites,
   getAllExercises,
   getExerciseById,
   createExercise,

@@ -11,12 +11,13 @@ cloudinary.config({
 
 /**
  * Upload a file to Cloudinary
- * @param {Buffer} fileBuffer - The file buffer
+ * @param {File} file - The file buffer
  * @param {String} resourceType - 'image' or 'video'
  * @param {String} folder - Folder path in Cloudinary
  * @returns {Promise<String>} - The secure URL of the uploaded file
  */
-const uploadToCloudinary = (fileBuffer, resourceType, folder) => {
+const uploadToCloudinary = (file, resourceType, folder) => {
+	const fileBuffer = file.buffer;
 	return new Promise((resolve, reject) => {
 		const uploadStream = cloudinary.uploader.upload_stream(
 			{ resource_type: resourceType, folder },
@@ -41,7 +42,7 @@ const uploadMultipleFiles = async (files, resourceType, folder) => {
 	if (!files || files.length === 0) return [];
 
 	const uploadPromises = files.map(file =>
-		uploadToCloudinary(file.buffer, resourceType, folder)
+		uploadToCloudinary(file, resourceType, folder)
 	);
 
 	return Promise.all(uploadPromises);

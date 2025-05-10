@@ -1,22 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const { protectUser } = require('../middleware/authMiddleware');
-const { 
-  registerUser, 
-  loginUser, 
-  getUserProfile, 
-  updateUserProfile, 
+const { protectUser, protectAdminOrTherapist } = require('../middleware/authMiddleware');
+const {
+  registerUser,
+  loginUser,
+  getUserProfile,
+  updateUserProfile,
   upgradeUserToPro,
-  getFavorites,
+  getFavoritesData,
+  getFavorite,
   addFavorite,
   removeFavorite,
   getFollowing,
   followTherapist,
   unfollowTherapist,
-  getTherapistExercises
+  getTherapistExercises,
+  getAllUsers
 } = require('../controllers/userController');
 
 // Setup routes
+
+router.route('/').get(protectAdminOrTherapist, getAllUsers)
 router.route('/register').post(registerUser);
 router.post('/login', loginUser);
 router.route('/profile')
@@ -26,9 +30,11 @@ router.route('/upgrade').post(protectUser, upgradeUserToPro);
 
 // Favorites routes
 router.route('/favorites')
-  .get(protectUser, getFavorites)
+  .get(protectUser, getFavoritesData)
   .post(protectUser, addFavorite);
-router.route('/favorites/:id').delete(protectUser, removeFavorite);
+router.route('/favorites/:id')
+  .get(protectUser, getFavorite)
+  .delete(protectUser, removeFavorite);
 
 // Following routes
 router.route('/following')
