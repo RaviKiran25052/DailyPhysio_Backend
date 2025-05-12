@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const generateToken = require('../utils/generateToken');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 const User = require('../models/User');
 const Favorites = require('../models/Favorites');
 const Exercise = require('../models/Exercise');
@@ -83,11 +84,25 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (user) {
+    // Update text fields
     user.fullName = req.body.fullName || user.fullName;
     user.email = req.body.email || user.email;
 
+    // Handle password update
     if (req.body.password) {
       user.password = req.body.password;
+    }
+
+    // Handle profile image upload
+    if (req.file) {
+      try {
+        // Upload image to Cloudinary
+        user.profileImage = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+
+      } catch (uploadError) {
+        res.status(500);
+        throw new Error('Image upload failed');
+      }
     }
 
     const updatedUser = await user.save();
@@ -96,6 +111,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       _id: updatedUser._id,
       fullName: updatedUser.fullName,
       email: updatedUser.email,
+      profileImage: updatedUser.profileImage,
       pro: updatedUser.pro,
       token: generateToken(updatedUser._id),
     });

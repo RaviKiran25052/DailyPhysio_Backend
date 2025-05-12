@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protectUser, protectAdminOrTherapist } = require('../middleware/authMiddleware');
+const multer = require('multer');
 const {
   registerUser,
   loginUser,
@@ -18,14 +19,19 @@ const {
   getAllUsers
 } = require('../controllers/userController');
 
-// Setup routes
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
+// Middleware for handling file uploads
+const uploadProfileImage = upload.single('image');
+
+// Setup routes
 router.route('/').get(protectAdminOrTherapist, getAllUsers)
 router.route('/register').post(registerUser);
 router.post('/login', loginUser);
 router.route('/profile')
   .get(protectUser, getUserProfile)
-  .put(protectUser, updateUserProfile);
+  .put([protectUser, uploadProfileImage], updateUserProfile);
 router.route('/upgrade').post(protectUser, upgradeUserToPro);
 
 // Favorites routes

@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Exercise = require('../models/Exercise');
 const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 const Followers = require('../models/Followers');
 
 // Create a new therapist
@@ -57,12 +58,46 @@ exports.getTherapist = async (req, res) => {
 
 // Update a therapist
 exports.updateTherapist = async (req, res) => {
-    try {
-        const therapist = await Therapist.findByIdAndUpdate(req.therapist._id, req.body, { new: true });
-        if (!therapist) return res.status(404).json({ message: 'Therapist not found' });
-        res.status(200).json(therapist);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+    const therapist = await Therapist.findById(req.therapist._id);
+    if (therapist) {
+        // Update all fields from req.body, except sensitive ones
+        Object.keys(req.body).forEach(key => {
+            if (key !== 'password') {
+                therapist[key] = req.body[key];
+            }
+        });
+
+        // Handle password update separately
+        if (req.body.password) {
+            therapist.password = req.body.password;
+        }
+        if (req.file) {
+            try {
+                // Upload image to Cloudinary
+                therapist.profilePic = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+            } catch (uploadError) {
+                res.status(500);
+                throw new Error('Image upload failed');
+            }
+        }
+        const updatedTherapist = await therapist.save();
+
+        // Create response object excluding sensitive information
+        res.json({
+            _id: updatedTherapist._id,
+            name: updatedTherapist.name,
+            email: updatedTherapist.email,
+            workingAt: updatedTherapist.workingAt,
+            experience: updatedTherapist.experience,
+            address: updatedTherapist.address,
+            phoneNumber: updatedTherapist.phoneNumber,
+            gender: updatedTherapist.gender,
+            specializations: updatedTherapist.specializations,
+            token: generateToken(updatedTherapist._id),
+        });
+    } else {
+        res.status(404);
+        throw new Error('Therapist not found');
     }
 };
 
@@ -356,7 +391,7 @@ exports.updateMembership = async (req, res) => {
     try {
         const { type, paymentMethod } = req.body;
         const therapist = await Therapist.findById(req.therapist._id);
-        
+
         if (!therapist) {
             return res.status(404).json({ message: 'Therapist not found' });
         }
@@ -399,7 +434,7 @@ exports.updateMembership = async (req, res) => {
             therapist.membership.type = type;
             therapist.membership.isActive = true;
             therapist.membership.expiresAt = expiresAt;
-            
+
             // Add payment record for paid plans
             if (payment) {
                 if (!therapist.membership.payments) {

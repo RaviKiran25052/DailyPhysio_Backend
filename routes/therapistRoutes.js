@@ -4,13 +4,20 @@ const express = require('express');
 const router = express.Router();
 const therapistController = require('../controllers/therapistController');
 const { protectTherapist } = require('../middleware/authMiddleware');
+const multer = require('multer');
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// Middleware for handling file uploads
+const uploadProfileImage = upload.single('image');
 
 router.post('/login', therapistController.loginTherapist);
-router.post('/register', therapistController.registerTherapist);
+router.post('/register', uploadProfileImage, therapistController.registerTherapist);
 
 router.route('/')
 	.get(protectTherapist, therapistController.getTherapist)
-	.put(protectTherapist, therapistController.updateTherapist)
+	.put([protectTherapist, uploadProfileImage], therapistController.updateTherapist)
 	.delete(protectTherapist, therapistController.deleteTherapist);
 
 // Analytics endpoint
