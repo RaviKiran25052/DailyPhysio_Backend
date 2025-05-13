@@ -50,21 +50,40 @@ const createRoutine = asyncHandler(async (req, res) => {
 // @route   GET /api/routines/my-routines (for current user)
 // @access  Private
 const getRoutinesByUserId = asyncHandler(async (req, res) => {
-  // If getting own routines, use req.user._id, otherwise use the userId from params
-  const userId = req.path.includes('my-routines') ? req.user._id : req.params.userId;
+  const userId = req.user._id;
 
-  // Check if user is authorized to view these routines
-  if (userId.toString() !== req.user._id.toString() && req.user.role !== 'isAdmin') {
-    res.status(403);
-    throw new Error('Not authorized to view these routines');
+  // Find all routines for the user and populate exercise data
+  const routines = await Routine.find({ userId })
+    .populate({
+      path: 'exerciseId',
+      select: 'title description instruction video image views favorites category subCategory position isPremium custom'
+    })
+    .lean();
+
+  // Return 404 if no routines found
+  if (!routines.length) {
+    res.status(404);
+    throw new Error('No routines found for this user');
   }
 
-  // Find routines and populate exercise details
-  const routines = await Routine.find({ userId })
-    .populate('exerciseId', 'title description instruction category subCategory position image')
-    .sort({ updatedAt: -1 });
+  // Format data for response
+  const formattedRoutines = routines.map(routine => {
+    return {
+      routineId: routine._id,
+      name: routine.name,
+      reps: routine.reps,
+      hold: routine.hold,
+      complete: routine.complete,
+      perform: routine.perform,
+      exercise: routine.exerciseId // This contains the full exercise document
+    };
+  });
 
-  res.json(routines);
+  res.status(200).json({
+    success: true,
+    count: formattedRoutines.length,
+    data: formattedRoutines
+  });
 });
 
 // @desc    Update a routine

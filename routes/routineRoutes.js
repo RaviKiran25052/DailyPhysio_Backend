@@ -12,18 +12,13 @@ const {
 router.use(protectUser);
 
 // Create a new routine
-router.post('/', createRoutine);
-
-// Get routines by user id
-router.get('/user/:userId', getRoutinesByUserId);
-
-// Get routines for the current logged-in user
-router.get('/my-routines', getRoutinesByUserId);
+router.route('/')
+  .post(createRoutine)
+  .get(getRoutinesByUserId);
 
 // Update a routine
-router.put('/:id', updateRoutine);
-
-// Delete a routine
-router.delete('/:id', deleteRoutine);
+router.route('/:id')
+  .put(updateRoutine)
+  .delete(deleteRoutine);
 
 module.exports = router; 
