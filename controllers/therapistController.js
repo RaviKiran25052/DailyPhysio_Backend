@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Exercise = require('../models/Exercise');
 const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 const Followers = require('../models/Followers');
 
 // Create a new therapist
@@ -48,8 +49,8 @@ exports.loginTherapist = async (req, res) => {
 // Get therapists
 exports.getTherapist = async (req, res) => {
     try {
-        const therapists = await Therapist.find(req.therapist._id);
-        res.status(200).json(therapists);
+        const therapist = await Therapist.findById(req.therapist._id);
+        res.status(200).json(therapist);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -57,12 +58,46 @@ exports.getTherapist = async (req, res) => {
 
 // Update a therapist
 exports.updateTherapist = async (req, res) => {
-    try {
-        const therapist = await Therapist.findByIdAndUpdate(req.therapist._id, req.body, { new: true });
-        if (!therapist) return res.status(404).json({ message: 'Therapist not found' });
-        res.status(200).json(therapist);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+    const therapist = await Therapist.findById(req.therapist._id);
+    if (therapist) {
+        // Update all fields from req.body, except sensitive ones
+        Object.keys(req.body).forEach(key => {
+            if (key !== 'password') {
+                therapist[key] = req.body[key];
+            }
+        });
+
+        // Handle password update separately
+        if (req.body.password) {
+            therapist.password = req.body.password;
+        }
+        if (req.file) {
+            try {
+                // Upload image to Cloudinary
+                therapist.profilePic = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+            } catch (uploadError) {
+                res.status(500);
+                throw new Error('Image upload failed');
+            }
+        }
+        const updatedTherapist = await therapist.save();
+
+        // Create response object excluding sensitive information
+        res.json({
+            _id: updatedTherapist._id,
+            name: updatedTherapist.name,
+            email: updatedTherapist.email,
+            workingAt: updatedTherapist.workingAt,
+            experience: updatedTherapist.experience,
+            address: updatedTherapist.address,
+            phoneNumber: updatedTherapist.phoneNumber,
+            gender: updatedTherapist.gender,
+            specializations: updatedTherapist.specializations,
+            token: generateToken(updatedTherapist._id),
+        });
+    } else {
+        res.status(404);
+        throw new Error('Therapist not found');
     }
 };
 
@@ -222,8 +257,8 @@ exports.getAnalytics = async (req, res) => {
 
         // Get exercises created by therapist and their categories
         const exercises = await Exercise.find({
-            'creator.createdBy': 'therapist',
-            'creator.createdById': therapistId
+            'custom.createdBy': 'therapist',
+            'custom.creatorId': therapistId
         });
 
         const exerciseCategories = {};
@@ -323,6 +358,95 @@ exports.getCreatedUsers = async (req, res) => {
         }).select('-password');
 
         res.status(200).json(users);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Get therapist membership details
+exports.getMembership = async (req, res) => {
+    try {
+        const therapist = await Therapist.findById(req.therapist._id);
+        if (!therapist) {
+            return res.status(404).json({ message: 'Therapist not found' });
+        }
+
+        // If membership field doesn't exist, return default free plan
+        if (!therapist.membership) {
+            return res.status(200).json({
+                type: 'free',
+                isActive: true,
+                payments: []
+            });
+        }
+
+        res.status(200).json(therapist.membership);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Update therapist membership
+exports.updateMembership = async (req, res) => {
+    try {
+        const { type, paymentMethod } = req.body;
+        const therapist = await Therapist.findById(req.therapist._id);
+
+        if (!therapist) {
+            return res.status(404).json({ message: 'Therapist not found' });
+        }
+
+        // Calculate expiry date based on plan type
+        const now = new Date();
+        let expiresAt = null;
+        let amount = 0;
+
+        if (type === 'monthly') {
+            expiresAt = new Date(now);
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+            amount = 19.99;
+        } else if (type === 'yearly') {
+            expiresAt = new Date(now);
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+            amount = 199.99;
+        }
+
+        // Create payment record for paid plans
+        const payment = type !== 'free' ? {
+            date: now,
+            amount,
+            plan: type,
+            method: paymentMethod,
+            status: 'completed'
+        } : null;
+
+        // Initialize membership if it doesn't exist
+        if (!therapist.membership) {
+            therapist.membership = {
+                type,
+                isActive: true,
+                startedAt: now,
+                expiresAt,
+                payments: payment ? [payment] : []
+            };
+        } else {
+            // Update existing membership
+            therapist.membership.type = type;
+            therapist.membership.isActive = true;
+            therapist.membership.expiresAt = expiresAt;
+
+            // Add payment record for paid plans
+            if (payment) {
+                if (!therapist.membership.payments) {
+                    therapist.membership.payments = [payment];
+                } else {
+                    therapist.membership.payments.push(payment);
+                }
+            }
+        }
+
+        await therapist.save();
+        res.status(200).json(therapist.membership);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
