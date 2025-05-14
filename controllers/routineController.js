@@ -75,7 +75,8 @@ const getRoutinesByUserId = asyncHandler(async (req, res) => {
       hold: routine.hold,
       complete: routine.complete,
       perform: routine.perform,
-      exercise: routine.exerciseId // This contains the full exercise document
+      exercise: routine.exerciseId, // This contains the full exercise document
+      updatedAt: routine.updatedAt || routine.createdAt
     };
   });
 
