@@ -16,7 +16,9 @@ const {
   followTherapist,
   unfollowTherapist,
   getTherapistExercises,
-  getAllUsers
+  getAllUsers,
+  getMembership,
+  updateMembership
 } = require('../controllers/userController');
 
 const storage = multer.memoryStorage();
@@ -50,5 +52,10 @@ router.route('/following/:therapistId')
   .delete(protectUser, unfollowTherapist);
 router.route('/therapists/:therapistId/exercises')
   .get(protectUser, getTherapistExercises);
+
+// Membership management
+router.route('/membership')
+  .get(protectUser, getMembership)
+  .put(protectUser, updateMembership);
 
 module.exports = router; 
