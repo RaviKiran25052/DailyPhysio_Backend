@@ -347,12 +347,12 @@ const followTherapist = asyncHandler(async (req, res) => {
 // @access  Private
 const unfollowTherapist = asyncHandler(async (req, res) => {
   const { therapistId } = req.params;
-
+  console.log(req.user._id)
   // Find the following relationship
   const follow = await Followers.findOne({
-    userId: req.user._id,
     therapistId
   });
+  
 
   if (!follow) {
     res.status(404);
