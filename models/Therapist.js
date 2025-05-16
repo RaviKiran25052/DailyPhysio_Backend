@@ -65,6 +65,12 @@ const therapistSchema = new mongoose.Schema(
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters long']
     },
+    resetPasswordOTP: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive', 'rejected', 'pending'],

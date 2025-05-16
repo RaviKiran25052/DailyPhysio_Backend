@@ -12,8 +12,14 @@ const upload = multer({ storage });
 // Middleware for handling file uploads
 const uploadProfileImage = upload.single('image');
 
+// Auth routes
 router.post('/login', therapistController.loginTherapist);
-router.post('/register', uploadProfileImage, therapistController.registerTherapist);
+router.post('/register', therapistController.registerTherapist);
+
+// Password reset routes
+router.post('/forgot-password', therapistController.forgotPassword);
+router.post('/verify-otp', therapistController.verifyOTP);
+router.post('/reset-password', therapistController.resetPassword);
 
 router.route('/')
 	.get(protectTherapist, therapistController.getTherapist)
