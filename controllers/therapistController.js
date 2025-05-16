@@ -451,3 +451,125 @@ exports.updateMembership = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// @desc    Generate and send OTP for password reset
+// @route   POST /therapist/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        // Check if therapist exists
+        const therapist = await Therapist.findOne({ email });
+        if (!therapist) {
+            return res.status(404).json({ message: 'Therapist not found' });
+        }
+        
+        // Generate a random 4-digit OTP
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        // Store OTP in therapist document with expiration time (10 minutes)
+        therapist.resetPasswordOTP = otp;
+        therapist.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+        await therapist.save();
+        
+        // Send email with OTP
+        const nodemailer = require('nodemailer');
+        
+        // Create transporter
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'dailyphysio2025@gmail.com',
+                pass: 'ocqs nxia dbsp kqsm'
+            }
+        });
+        
+        // Create email content with HTML
+        const mailOptions = {
+            from: 'dailyphysio2025@gmail.com',
+            to: email,
+            subject: 'Reset password',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #6b46c1;">Password Reset Request</h2>
+                    <p>We received a request to reset your password. Please use the following OTP to complete your password reset:</p>
+                    <h1 style="font-size: 32px; color: #6b46c1; text-align: center; padding: 10px; background-color: #f7f7f7; border-radius: 5px;"><strong>${otp}</strong></h1>
+                    <p>This OTP will expire in 10 minutes.</p>
+                    <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+                    <p>Thank you,<br>The DailyPhysio Team</p>
+                </div>
+            `
+        };
+        
+        // Send email
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error('Email error:', error);
+                return res.status(500).json({ message: 'Failed to send email' });
+            }
+        });
+        
+        res.json({ message: 'OTP sent to email' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Verify OTP for password reset
+// @route   POST /therapist/verify-otp
+// @access  Public
+exports.verifyOTP = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        
+        // Check if therapist exists with matching OTP and valid expiration
+        const therapist = await Therapist.findOne({ 
+            email, 
+            resetPasswordOTP: otp,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+        
+        if (!therapist) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+        
+        res.json({ message: 'OTP verified successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Reset password with new password
+// @route   POST /therapist/reset-password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, password, confirmPassword } = req.body;
+        
+        // Validate password match
+        if (password !== confirmPassword) {
+            return res.status(400).json({ message: 'Passwords do not match' });
+        }
+        
+        // Find therapist
+        const therapist = await Therapist.findOne({ 
+            email,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+        
+        if (!therapist) {
+            return res.status(400).json({ message: 'Password reset session expired' });
+        }
+        
+        // Update password
+        therapist.password = password;
+        therapist.resetPasswordOTP = undefined;
+        therapist.resetPasswordExpires = undefined;
+        await therapist.save();
+        
+        res.json({ message: 'Password reset successful' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

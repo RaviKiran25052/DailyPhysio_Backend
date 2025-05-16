@@ -20,6 +20,12 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    resetPasswordOTP: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
     savedExercises: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'Exercise',
