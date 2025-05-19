@@ -11,19 +11,39 @@ const Followers = require('../models/Followers');
 // Create a new therapist
 exports.registerTherapist = async (req, res) => {
     try {
+        const { email } = req.body;
+
+        // Check if therapist already exists
+        const existingTherapist = await Therapist.findOne({ email });
+
+        if (existingTherapist) {
+            return res.status(400).json({
+                status: "error",
+                message: "Email already exists",
+            });
+        }
+
+        // Create and save new therapist
         const therapist = new Therapist(req.body);
         await therapist.save();
-        if (therapist) {
-            res.status(201).json({
+
+        res.status(201).json({
+            status: "success",
+            message: "Therapist registered successfully",
+            data: {
                 _id: therapist._id,
                 name: therapist.name,
                 email: therapist.email,
                 status: therapist.status,
                 token: generateToken(therapist._id),
-            });
-        }
+            }
+        });
+
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(500).json({
+            status: "error",
+            message: error.message,
+        });
     }
 };
 
