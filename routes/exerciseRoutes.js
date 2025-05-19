@@ -10,7 +10,8 @@ const {
   createExercise,
   editExercise,
   deleteExercise,
-  getAllExercises
+  getAllExercises,
+  getFlatData
 } = require('../controllers/exerciseController');
 
 // Setup multer for file uploads
@@ -26,6 +27,8 @@ const uploadFiles = upload.fields([
 // Public routes with membership check
 router.get('/filters', checkPremiumAccess, filterExercises);
 router.get('/creator/:id', checkPremiumAccess, getExercisesByCreator);
+
+router.get('/categories', getFlatData)
 
 router.route('/')
   .get(checkPremiumAccess, getAllExercises)

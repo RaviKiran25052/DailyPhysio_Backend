@@ -108,6 +108,86 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
   res.json({ exercises, creatorData: creator });
 });
 
+const getFlatData = asyncHandler(async (req, res) => {
+  try {
+    // Aggregate to get all unique combinations of category, subCategory, and position
+    const result = await Exercise.aggregate([
+      {
+        $group: {
+          _id: {
+            category: "$category",
+            subCategory: "$subCategory",
+            position: "$position"
+          }
+        }
+      },
+      {
+        $sort: {
+          "_id.category": 1,
+          "_id.subCategory": 1,
+          "_id.position": 1
+        }
+      }
+    ]);
+
+    // Transform the aggregated data into the desired format
+    const categoriesMap = {};
+    const allPositions = new Set(); // Track all unique positions
+
+    result.forEach(item => {
+      const { category, subCategory, position } = item._id;
+      
+      // Add to all positions set
+      allPositions.add(position);
+      
+      // Initialize category if not exists
+      if (!categoriesMap[category]) {
+        categoriesMap[category] = {};
+      }
+      
+      // Initialize subCategory if not exists
+      if (!categoriesMap[category][subCategory]) {
+        categoriesMap[category][subCategory] = [];
+      }
+      
+      // Add position to the subCategory array if not already there
+      if (!categoriesMap[category][subCategory].includes(position)) {
+        categoriesMap[category][subCategory].push(position);
+      }
+    });
+
+    // Convert to an object where each category name is a key
+    const categoriesObject = {};
+    
+    Object.keys(categoriesMap).forEach(category => {
+      const subCategoriesObj = categoriesMap[category];
+      const subCategories = Object.keys(subCategoriesObj).map(subCategory => {
+        return {
+          subCategory,
+          positions: subCategoriesObj[subCategory]
+        };
+      });
+
+      categoriesObject[category] = subCategories;
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        categories: categoriesObject,
+        positions: Array.from(allPositions).sort()
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch categories",
+      error: error.message
+    });
+  }
+});
+
 const getAllExercises = asyncHandler(async (req, res) => {
   const page = 1;
   const limit = 9;
@@ -437,6 +517,7 @@ module.exports = {
   getFeaturedExercises,
   filterExercises,
   getExercisesByCreator,
+  getFlatData,
   getAllExercises,
   getExerciseById,
   createExercise,
