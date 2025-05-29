@@ -44,7 +44,7 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
 // @route   GET /api/exercises/filters
 // @access  Public (with different responses based on membership)
 const filterExercises = asyncHandler(async (req, res) => {
-  const { category, subcategory, position, search } = req.query;
+  const { category, subcategory, position } = req.query;
 
   // Build query object
   const query = { 'custom.type': 'public' };
@@ -54,12 +54,6 @@ const filterExercises = asyncHandler(async (req, res) => {
   if (category) query.category = category;
   if (subcategory) query.subCategory = subcategory;
   if (position) query.position = position;
-  if (search) {
-    query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
-    ];
-  }
 
   // Find exercises based on query
   const exercises = await Exercise.find(query);
@@ -110,7 +104,7 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
 
 const getFlatData = asyncHandler(async (req, res) => {
   try {
-    // Aggregate to get all unique combinations of category, subCategory, and position
+    // 1. Aggregate unique category-subCategory-position combinations
     const result = await Exercise.aggregate([
       {
         $group: {
@@ -130,52 +124,56 @@ const getFlatData = asyncHandler(async (req, res) => {
       }
     ]);
 
-    // Transform the aggregated data into the desired format
+    // 2. Fetch all exercises for 'All' key
+    const allExercises = await Exercise.find({});
+
+    // 3. Build categories map and collect positions
     const categoriesMap = {};
-    const allPositions = new Set(); // Track all unique positions
+    const allPositions = new Set();
 
     result.forEach(item => {
       const { category, subCategory, position } = item._id;
-      
-      // Add to all positions set
+
       allPositions.add(position);
-      
-      // Initialize category if not exists
+
       if (!categoriesMap[category]) {
         categoriesMap[category] = {};
       }
-      
-      // Initialize subCategory if not exists
+
       if (!categoriesMap[category][subCategory]) {
         categoriesMap[category][subCategory] = [];
       }
-      
-      // Add position to the subCategory array if not already there
+
       if (!categoriesMap[category][subCategory].includes(position)) {
         categoriesMap[category][subCategory].push(position);
       }
     });
 
-    // Convert to an object where each category name is a key
-    const categoriesObject = {};
-    
+    // 4. Convert categoriesMap to desired object structure
+    const categoriesObject = {
+      All: allExercises // ✅ All key at the top with all exercises
+    };
+
     Object.keys(categoriesMap).forEach(category => {
       const subCategoriesObj = categoriesMap[category];
-      const subCategories = Object.keys(subCategoriesObj).map(subCategory => {
-        return {
-          subCategory,
-          positions: subCategoriesObj[subCategory]
-        };
-      });
+      const subCategories = Object.keys(subCategoriesObj).map(subCategory => ({
+        subCategory,
+        positions: subCategoriesObj[subCategory]
+      }));
 
       categoriesObject[category] = subCategories;
     });
 
+    // 5. Convert positions to sorted array and add "All" at the beginning
+    const sortedPositions = Array.from(allPositions).sort();
+    const positionsWithAll = ['All', ...sortedPositions];
+
+    // 6. Send final response
     return res.status(200).json({
       success: true,
       data: {
-        categories: categoriesObject,
-        positions: Array.from(allPositions).sort()
+        categories: categoriesObject,  // includes "All" key first
+        positions: positionsWithAll    // "All" key prepended
       }
     });
   } catch (error) {
