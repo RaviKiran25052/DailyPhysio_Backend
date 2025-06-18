@@ -28,7 +28,7 @@ const uploadFiles = upload.fields([
 router.get('/filters', checkPremiumAccess, filterExercises);
 router.get('/creator/:id', checkPremiumAccess, getExercisesByCreator);
 
-router.get('/categories', getFlatData)
+router.get('/categories', checkPremiumAccess, getFlatData)
 
 router.route('/')
   .get(checkPremiumAccess, getAllExercises)

@@ -11,6 +11,8 @@ const Followers = require('../models/Followers');
 // Create a new therapist
 exports.registerTherapist = async (req, res) => {
     try {
+        console.log(0);
+        
         const { email } = req.body;
 
         // Check if therapist already exists
@@ -22,10 +24,35 @@ exports.registerTherapist = async (req, res) => {
                 message: "Email already exists",
             });
         }
+        console.log(1);
+        
+        const therapistData = {
+            name: req.body.name,
+            email: req.body.email,
+            password: req.body.password,
+            specializations: req.body.specializations,
+            experience: req.body.experience,
+            gender: req.body.gender,
+            workingAt: req.body.workingAt,
+            address: req.body.address,
+            phoneNumber: req.body.phoneNumber,
+            profilePic: 'https://res.cloudinary.com/dalzs7bc2/image/upload/v1746784719/doc_jcxqwb.png'
+        }
+        if (req.file) {
+            try {
+                // Upload image to Cloudinary
+                therapistData.profilePic = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+            } catch (uploadError) {
+                res.status(500);
+                throw new Error('Image upload failed');
+            }
+        }
+        console.log(2);
 
         // Create and save new therapist
-        const therapist = new Therapist(req.body);
+        const therapist = new Therapist(therapistData);
         await therapist.save();
+        console.log(3);
 
         res.status(201).json({
             status: "success",
@@ -478,24 +505,24 @@ exports.updateMembership = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
-        
+
         // Check if therapist exists
         const therapist = await Therapist.findOne({ email });
         if (!therapist) {
             return res.status(404).json({ message: 'Therapist not found' });
         }
-        
+
         // Generate a random 4-digit OTP
         const otp = Math.floor(1000 + Math.random() * 9000).toString();
-        
+
         // Store OTP in therapist document with expiration time (10 minutes)
         therapist.resetPasswordOTP = otp;
         therapist.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
         await therapist.save();
-        
+
         // Send email with OTP
         const nodemailer = require('nodemailer');
-        
+
         // Create transporter
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -504,7 +531,7 @@ exports.forgotPassword = async (req, res) => {
                 pass: 'ocqs nxia dbsp kqsm'
             }
         });
-        
+
         // Create email content with HTML
         const mailOptions = {
             from: 'dailyphysio2025@gmail.com',
@@ -521,7 +548,7 @@ exports.forgotPassword = async (req, res) => {
                 </div>
             `
         };
-        
+
         // Send email
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
@@ -529,7 +556,7 @@ exports.forgotPassword = async (req, res) => {
                 return res.status(500).json({ message: 'Failed to send email' });
             }
         });
-        
+
         res.json({ message: 'OTP sent to email' });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -542,18 +569,18 @@ exports.forgotPassword = async (req, res) => {
 exports.verifyOTP = async (req, res) => {
     try {
         const { email, otp } = req.body;
-        
+
         // Check if therapist exists with matching OTP and valid expiration
-        const therapist = await Therapist.findOne({ 
-            email, 
+        const therapist = await Therapist.findOne({
+            email,
             resetPasswordOTP: otp,
             resetPasswordExpires: { $gt: Date.now() }
         });
-        
+
         if (!therapist) {
             return res.status(400).json({ message: 'Invalid or expired OTP' });
         }
-        
+
         res.json({ message: 'OTP verified successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -566,28 +593,28 @@ exports.verifyOTP = async (req, res) => {
 exports.resetPassword = async (req, res) => {
     try {
         const { email, password, confirmPassword } = req.body;
-        
+
         // Validate password match
         if (password !== confirmPassword) {
             return res.status(400).json({ message: 'Passwords do not match' });
         }
-        
+
         // Find therapist
-        const therapist = await Therapist.findOne({ 
+        const therapist = await Therapist.findOne({
             email,
             resetPasswordExpires: { $gt: Date.now() }
         });
-        
+
         if (!therapist) {
             return res.status(400).json({ message: 'Password reset session expired' });
         }
-        
+
         // Update password
         therapist.password = password;
         therapist.resetPasswordOTP = undefined;
         therapist.resetPasswordExpires = undefined;
         await therapist.save();
-        
+
         res.json({ message: 'Password reset successful' });
     } catch (error) {
         res.status(500).json({ message: error.message });

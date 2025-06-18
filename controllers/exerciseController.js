@@ -4,6 +4,8 @@ const User = require('../models/User');
 const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
 const { uploadMultipleFiles, uploadToCloudinary } = require('../utils/cloudinary');
+const Routine = require('../models/Routine');
+const Favorites = require('../models/Favorites');
 
 // @desc    Get featured exercises (1 from each category)
 // @route   GET /api/exercises/featured
@@ -98,7 +100,11 @@ const getExercisesByCreator = asyncHandler(async (req, res) => {
     'custom.creatorId': creatorId,
     'custom.type': 'public'
   });
-
+  exercises.map(exercise => {
+    if (req.accessType === 'normal' || exercise.isPremium) {
+      exercise.video = null;
+    }
+  })
   res.json({ exercises, creatorData: creator });
 });
 
@@ -489,6 +495,8 @@ const editExercise = asyncHandler(async (req, res) => {
 const deleteExercise = asyncHandler(async (req, res) => {
   const exerciseId = req.params.id;
   const exercise = await Exercise.findById(exerciseId);
+  const routineEx = await Routine.deleteMany({ exerciseId: exerciseId });
+  const FavoriteEx = await Favorites.deleteMany({ exerciseId: exerciseId });
 
   if (!exercise) {
     res.status(404);
@@ -503,6 +511,12 @@ const deleteExercise = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to delete this exercise');
   }
 
+  if (routineEx) {
+    await Routine.findByIdAndDelete(exerciseId);
+  }
+  if (FavoriteEx) {
+    await Favorites.findByIdAndDelete(exerciseId);
+  }
   await Exercise.findByIdAndDelete(exerciseId);
 
   res.status(200).json({

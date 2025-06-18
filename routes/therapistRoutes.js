@@ -14,7 +14,7 @@ const uploadProfileImage = upload.single('image');
 
 // Auth routes
 router.post('/login', therapistController.loginTherapist);
-router.post('/register', therapistController.registerTherapist);
+router.post('/register', uploadProfileImage, therapistController.registerTherapist);
 
 // Password reset routes
 router.post('/forgot-password', therapistController.forgotPassword);
