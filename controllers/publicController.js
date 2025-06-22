@@ -7,6 +7,15 @@ exports.getTrendingData = async (req, res) => {
         const trendingTherapists = await Therapist.find({ status: "active" })
             .sort({ consultationCount: -1, followers: -1 })
             .limit(5);
+        const data = await Promise.all(
+            trendingTherapists.map(async (t) => ({
+                ...t.toObject(),
+                exerciseCount: await Exercise.countDocuments({
+                    "custom.createdBy": "therapist",
+                    "custom.creatorId": t._id.toString(),
+                }),
+            }))
+        );
 
         // Get top 5 trending exercises with filters and excluding the video field
         const trendingExercises = await Exercise.find({
@@ -21,7 +30,7 @@ exports.getTrendingData = async (req, res) => {
         res.status(200).json({
             success: true,
             data: {
-                trendingTherapists,
+                trendingTherapists: data,
                 trendingExercises
             }
         });

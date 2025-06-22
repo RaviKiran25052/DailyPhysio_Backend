@@ -158,7 +158,32 @@ const upgradeUserToPro = asyncHandler(async (req, res) => {
 const getAllUsers = asyncHandler(async (req, res) => {
   try {
     const users = await User.find({ role: "isUser" }).select('-password');
-    res.status(200).json(users);
+
+    const therapistIds = users
+      .filter(u => u.creator.createdBy === 'therapist' && u.creator.createdById)
+      .map(u => u.creator.createdById);
+
+    const therapists = await Therapist.find({
+      _id: { $in: therapistIds }
+    }).select('name');
+
+    const therapistMap = therapists.reduce((acc, t) => {
+      acc[t._id.toString()] = t.name;
+      return acc;
+    }, {});
+
+    const result = users.map(user => {
+      const therapistName = user.creator.createdBy === 'therapist'
+        ? therapistMap[user.creator.createdById] || null
+        : null;
+
+      return {
+        ...user.toObject(),
+        therapistName,
+      };
+    });
+    
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -352,7 +377,7 @@ const unfollowTherapist = asyncHandler(async (req, res) => {
   const follow = await Followers.findOne({
     therapistId
   });
-  
+
 
   if (!follow) {
     res.status(404);
@@ -491,25 +516,25 @@ const updateMembership = asyncHandler(async (req, res) => {
 // @access  Public
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  
+
   // Check if user exists
   const user = await User.findOne({ email });
   if (!user) {
     res.status(404);
     throw new Error('User not found');
   }
-  
+
   // Generate a random 4-digit OTP
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
-  
+
   // Store OTP in user document with expiration time (10 minutes)
   user.resetPasswordOTP = otp;
   user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
   await user.save();
-  
+
   // Send email with OTP
   const nodemailer = require('nodemailer');
-  
+
   // Create transporter
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -518,7 +543,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
       pass: 'ocqs nxia dbsp kqsm'
     }
   });
-  
+
   // Create email content with HTML
   const mailOptions = {
     from: 'dailyphysio2025@gmail.com',
@@ -535,7 +560,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
       </div>
     `
   };
-  
+
   // Send email
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
@@ -544,7 +569,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
       throw new Error('Failed to send email');
     }
   });
-  
+
   res.json({ message: 'OTP sent to email' });
 });
 
@@ -553,19 +578,19 @@ const forgotPassword = asyncHandler(async (req, res) => {
 // @access  Public
 const verifyOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
-  
+
   // Check if user exists
-  const user = await User.findOne({ 
-    email, 
+  const user = await User.findOne({
+    email,
     resetPasswordOTP: otp,
     resetPasswordExpires: { $gt: Date.now() }
   });
-  
+
   if (!user) {
     res.status(400);
     throw new Error('Invalid or expired OTP');
   }
-  
+
   res.json({ message: 'OTP verified successfully' });
 });
 
@@ -574,30 +599,30 @@ const verifyOTP = asyncHandler(async (req, res) => {
 // @access  Public
 const resetPassword = asyncHandler(async (req, res) => {
   const { email, password, confirmPassword } = req.body;
-  
+
   // Validate password match
   if (password !== confirmPassword) {
     res.status(400);
     throw new Error('Passwords do not match');
   }
-  
+
   // Find user
-  const user = await User.findOne({ 
+  const user = await User.findOne({
     email,
     resetPasswordExpires: { $gt: Date.now() }
   });
-  
+
   if (!user) {
     res.status(400);
     throw new Error('Password reset session expired');
   }
-  
+
   // Update password
   user.password = password;
   user.resetPasswordOTP = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();
-  
+
   res.json({ message: 'Password reset successful' });
 });
 
