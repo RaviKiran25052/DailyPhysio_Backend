@@ -51,7 +51,17 @@ const protect = (role = 'user') => asyncHandler(async (req, res, next) => {
             res.status(404);
             throw new Error('User not found');
           }
-          if (user.membership.type === 'free') {
+
+          // Update membership status before checking
+          const wasUpdated = user.updateMembershipStatus();
+          if (wasUpdated) {
+            await user.save();
+          }
+
+          // Get current active membership
+          const currentMembership = user.getCurrentMembership();
+
+          if (!currentMembership || currentMembership.type === 'free' || currentMembership.status !== 'active') {
             res.status(403);
             throw new Error('This route requires Pro user status');
           }
@@ -66,6 +76,12 @@ const protect = (role = 'user') => asyncHandler(async (req, res, next) => {
           if (!user) {
             res.status(404);
             throw new Error('User not found');
+          }
+
+          // Update membership status for regular users too
+          const wasUpdated = user.updateMembershipStatus();
+          if (wasUpdated) {
+            await user.save();
           }
 
           req.user = user;
@@ -110,10 +126,19 @@ const protectMultiRole = (roles = ['user']) => asyncHandler(async (req, res, nex
         const user = await User.findById(decoded.id).select('-password');
 
         if (user) {
+          // Update membership status before checking roles
+          const wasUpdated = user.updateMembershipStatus();
+          if (wasUpdated) {
+            await user.save();
+          }
+
+          // Get current active membership
+          const currentMembership = user.getCurrentMembership();
+
           if (roles.includes('admin') && user.role === 'isAdmin') {
             req.user = user;
             roleFound = true;
-          } else if (roles.includes('proUser') && user.membership.type !== 'free') {
+          } else if (roles.includes('proUser') && currentMembership && currentMembership.type !== 'free' && currentMembership.status === 'active') {
             req.user = user;
             roleFound = true;
           } else if (roles.includes('user')) {
@@ -173,7 +198,16 @@ const checkPremiumAccess = asyncHandler(async (req, res, next) => {
         return next();
       }
 
-      if (user.membership && user.membership.type && user.membership.type !== 'free') {
+      // Update membership status before checking access
+      const wasUpdated = user.updateMembershipStatus();
+      if (wasUpdated) {
+        await user.save();
+      }
+
+      // Get current active membership
+      const currentMembership = user.getCurrentMembership();
+
+      if (currentMembership && currentMembership.type !== 'free' && currentMembership.status === 'active') {
         req.accessType = 'premium';
         req.user = user;
       } else {
@@ -181,6 +215,7 @@ const checkPremiumAccess = asyncHandler(async (req, res, next) => {
         req.user = user;
       }
       next();
+
     } catch (error) {
       console.error('Token verification error:', error.message);
       req.accessType = 'normal';

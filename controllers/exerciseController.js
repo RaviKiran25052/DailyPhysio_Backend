@@ -345,9 +345,12 @@ const createExercise = asyncHandler(async (req, res) => {
     isPremium
   } = req.body;
 
+  // Get current active membership for the user
+  const currentMembership = req.user ? req.user.getCurrentMembership() : null;
+
   // Check authorization
   const isAuthorized =
-    (req.user && req.user.membership.type !== 'free') || // Pro user
+    (req.user && currentMembership && currentMembership.type !== 'free' && currentMembership.status === 'active') || // Pro user
     req.therapist || // Therapist
     (req.user && req.user.role === 'isAdmin'); // Admin
 
@@ -363,7 +366,7 @@ const createExercise = asyncHandler(async (req, res) => {
   if (req.therapist) {
     createdBy = 'therapist';
     creatorId = req.therapist._id;
-  } else if (req.user && req.user.membership.type !== 'free') {
+  } else if (req.user && currentMembership && currentMembership.type !== 'free' && currentMembership.status === 'active') {
     createdBy = 'proUser';
     creatorId = req.user._id;
   } else if (req.user && req.user.role === 'isAdmin') {

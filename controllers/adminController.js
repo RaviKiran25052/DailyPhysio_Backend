@@ -364,12 +364,32 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
 const getUserAnalytics = asyncHandler(async (req, res) => {
   // Count regular and pro users
   const regularUsersCount = await User.countDocuments({
-    'membership.type': 'free',
+    'membership': {
+      $elemMatch: {
+        'type': 'free',
+        'status': 'active'
+      }
+    },
     'email': { $ne: process.env.ADMIN_EMAIL || 'admin@example.com' }
   });
 
-  const monthlyCount = await User.countDocuments({ 'membership.type': 'monthly' });
-  const yearlyCount = await User.countDocuments({ 'membership.type': 'yearly' });
+  const monthlyCount = await User.countDocuments({
+    'membership': {
+      $elemMatch: {
+        'type': 'monthly',
+        'status': 'active'
+      }
+    }
+  });
+
+  const yearlyCount = await User.countDocuments({
+    'membership': {
+      $elemMatch: {
+        'type': 'yearly',
+        'status': 'active'
+      }
+    }
+  });
   const totalCount = monthlyCount + yearlyCount;
 
 

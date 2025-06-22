@@ -18,13 +18,16 @@ const createRoutine = asyncHandler(async (req, res) => {
 
   // Get the user to check membership type
   const user = await User.findById(req.user._id);
-  
+
   // Check if the user is not a pro member (i.e., has free membership)
-  if (user.membership.type === 'free') {
+  // Get current active membership
+  const currentMembership = user.getCurrentMembership();
+
+  if (currentMembership && currentMembership.type === 'free' && currentMembership.status === 'active') {
     // Count existing routines for this user
     const routineCount = await Routine.countDocuments({ userId: req.user._id });
-    
-    // If user has 2 or more routines already, return error
+
+    // If user has 3 or more routines already, return error
     if (routineCount >= 3) {
       res.status(403);
       throw new Error('Free users can only create 3 routines. Please upgrade to Pro for unlimited routines.');
@@ -92,36 +95,36 @@ const getRoutinesByUserId = asyncHandler(async (req, res) => {
 // @access  Private
 const updateRoutine = asyncHandler(async (req, res) => {
   const routineId = req.params.id;
-  
+
   // Find the routine
   const routine = await Routine.findById(routineId);
-  
+
   if (!routine) {
     res.status(404);
     throw new Error('Routine not found');
   }
-  
+
   // Check if user is authorized to update this routine
   if (routine.userId.toString() !== req.user._id.toString() && req.user.role !== 'isAdmin') {
     res.status(403);
     throw new Error('Not authorized to update this routine');
   }
-  
+
   // Update routine fields
   const { name, reps, hold, complete, perform } = req.body;
-  
+
   routine.name = name || routine.name;
   routine.reps = reps !== undefined ? reps : routine.reps;
   routine.hold = hold !== undefined ? hold : routine.hold;
   routine.complete = complete !== undefined ? complete : routine.complete;
-  
+
   if (perform) {
     routine.perform.count = perform.count !== undefined ? perform.count : routine.perform.count;
     routine.perform.type = perform.type || routine.perform.type;
   }
-  
+
   const updatedRoutine = await routine.save();
-  
+
   res.json(updatedRoutine);
 });
 
@@ -130,23 +133,23 @@ const updateRoutine = asyncHandler(async (req, res) => {
 // @access  Private
 const deleteRoutine = asyncHandler(async (req, res) => {
   const routineId = req.params.id;
-  
+
   // Find the routine
   const routine = await Routine.findById(routineId);
-  
+
   if (!routine) {
     res.status(404);
     throw new Error('Routine not found');
   }
-  
+
   // Check if user is authorized to delete this routine
   if (routine.userId.toString() !== req.user._id.toString() && req.user.role !== 'isAdmin') {
     res.status(403);
     throw new Error('Not authorized to delete this routine');
   }
-  
+
   await Routine.findByIdAndDelete(routineId);
-  
+
   res.json({ message: 'Routine removed' });
 });
 
