@@ -113,6 +113,9 @@ const getFlatData = asyncHandler(async (req, res) => {
     // 1. Aggregate unique category-subCategory-position combinations
     const result = await Exercise.aggregate([
       {
+        $match: req.accessType === 'premium' ? {} : { isPremium: false }
+      },
+      {
         $group: {
           _id: {
             category: "$category",
@@ -131,7 +134,11 @@ const getFlatData = asyncHandler(async (req, res) => {
     ]);
 
     // 2. Fetch all exercises for 'All' key
-    const allExercises = await Exercise.find({});
+    const allExercises = await Exercise.find(
+      req.accessType === 'premium'
+        ? {}
+        : { isPremium: false }
+    );
 
     // 3. Build categories map and collect positions
     const categoriesMap = {};
