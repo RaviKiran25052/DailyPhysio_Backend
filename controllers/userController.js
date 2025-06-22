@@ -6,6 +6,7 @@ const Favorites = require('../models/Favorites');
 const Exercise = require('../models/Exercise');
 const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
+const Consultation = require('../models/Consultation');
 
 // @desc    Register a new user
 // @route   POST /users
@@ -153,7 +154,6 @@ const upgradeUserToPro = asyncHandler(async (req, res) => {
   }
 });
 
-
 // Fetch all users
 const getAllUsers = asyncHandler(async (req, res) => {
   try {
@@ -182,7 +182,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
         therapistName,
       };
     });
-    
+
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -372,7 +372,6 @@ const followTherapist = asyncHandler(async (req, res) => {
 // @access  Private
 const unfollowTherapist = asyncHandler(async (req, res) => {
   const { therapistId } = req.params;
-  console.log(req.user._id)
   // Find the following relationship
   const follow = await Followers.findOne({
     therapistId
@@ -421,6 +420,60 @@ const getTherapistExercises = asyncHandler(async (req, res) => {
   });
 
   res.json(exercises);
+});
+
+const getConsultedExercises = asyncHandler(async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Find all consultations for the user and populate therapist and recommended exercises
+    const consultations = await Consultation.find({
+      patient_id: userId,
+      'request.status': 'active' // Only get active consultations
+    })
+      .populate({
+        path: 'therapist_id',
+        select: 'name email profilePic gender specializations bio workingAt address phoneNumber experience followers'
+      })
+      .populate({
+        path: 'recommendedExercises',
+        select: 'title description instruction video image reps hold set perform category subCategory position isPremium views favorites'
+      })
+      .select('therapist_id recommendedExercises notes createdAt updatedAt request')
+      .sort({ createdAt: -1 }); // Sort by newest first
+
+    if (!consultations || consultations.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active consultations found for this user'
+      });
+    }
+
+    // Format the response data
+    const consultedData = consultations.map(consultation => ({
+      consultationId: consultation._id,
+      therapist: consultation.therapist_id,
+      recommendedExercises: consultation.recommendedExercises,
+      notes: consultation.notes,
+      consultationDate: consultation.createdAt,
+      lastUpdated: consultation.updatedAt,
+      status: consultation.request.status
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: 'Consulted exercises retrieved successfully',
+      consultedData
+    });
+
+  } catch (error) {
+    console.error('Error fetching consulted exercises:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching consulted exercises',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
 const getMembership = asyncHandler(async (req, res) => {
@@ -641,6 +694,7 @@ module.exports = {
   followTherapist,
   unfollowTherapist,
   getTherapistExercises,
+  getConsultedExercises,
   getMembership,
   updateMembership,
   forgotPassword,

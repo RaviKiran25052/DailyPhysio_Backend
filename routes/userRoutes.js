@@ -17,11 +17,12 @@ const {
   unfollowTherapist,
   getTherapistExercises,
   getAllUsers,
+  getConsultedExercises,
   getMembership,
   updateMembership,
   forgotPassword,
   verifyOTP,
-  resetPassword
+  resetPassword,
 } = require('../controllers/userController');
 
 const storage = multer.memoryStorage();
@@ -60,6 +61,9 @@ router.route('/therapists/:therapistId/exercises')
 router.route('/membership')
   .get(protectUser, getMembership)
   .put(protectUser, updateMembership);
+  
+router.route('/consultations')
+  .get(protectUser, getConsultedExercises)
 
 // Password reset routes
 router.post('/forgot-password', forgotPassword);
