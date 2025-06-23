@@ -71,14 +71,24 @@ const userSchema = mongoose.Schema(
   }
 );
 
-// Method to hash password before saving
+// Method to hash password before saving and ensure membership array
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
+  // Hash password if it's modified
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
   }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  // Ensure new users have a free membership
+  if (this.isNew && this.membership.length === 0) {
+    this.membership.push({
+      type: "free",
+      paymentDate: null,
+      status: "active"
+    });
+  }
+
+  next();
 });
 
 // Method to compare entered password with hashed password

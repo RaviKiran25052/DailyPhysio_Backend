@@ -235,6 +235,8 @@ const getAllExercises = asyncHandler(async (req, res) => {
 // @access  Public (with different responses based on membership)
 const getExerciseById = asyncHandler(async (req, res) => {
   const exerciseId = req.params.id;
+  const isActive = req.query['consultedData[isActive]'];
+
   // Find the exercise by ID
   const exercise = await Exercise.findById(exerciseId);
   if (!exercise) {
@@ -248,7 +250,9 @@ const getExerciseById = asyncHandler(async (req, res) => {
   let formattedExercise = { ...exercise.toObject() };
   // For normal users (non-pro), remove videos and check premium status
   if (req.accessType === 'normal' || exercise.isPremium) {
-    formattedExercise.video = null;
+    if (!isActive) {
+      formattedExercise.video = null;
+    }
   }
   // Get creator data
   let creatorData = null;

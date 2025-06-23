@@ -362,6 +362,22 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
 
 // Helper function to get user analytics
 const getUserAnalytics = asyncHandler(async (req, res) => {
+
+  const allUsers = await User.find({});
+  let usersToSave = [];
+
+  allUsers.forEach(user => {
+    const wasUpdated = user.updateMembershipStatus();
+    if (wasUpdated) {
+      usersToSave.push(user);
+    }
+  });
+
+  // Save all updated users in batch
+  if (usersToSave.length > 0) {
+    await Promise.all(usersToSave.map(user => user.save()));
+  }
+
   // Count regular and pro users
   const regularUsersCount = await User.countDocuments({
     'membership': {
