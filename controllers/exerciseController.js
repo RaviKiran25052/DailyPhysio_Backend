@@ -46,7 +46,7 @@ const getFeaturedExercises = asyncHandler(async (req, res) => {
 // @route   GET /api/exercises/filters
 // @access  Public (with different responses based on membership)
 const filterExercises = asyncHandler(async (req, res) => {
-  const { category, subcategory, position } = req.query;
+  const { category, subcategory, position, search } = req.query;
 
   // Build query object
   const query = { 'custom.type': 'public' };
@@ -56,6 +56,19 @@ const filterExercises = asyncHandler(async (req, res) => {
   if (category) query.category = category;
   if (subcategory) query.subCategory = subcategory;
   if (position) query.position = position;
+
+  // Add search functionality
+  if (search) {
+    const searchRegex = new RegExp(search, 'i'); // Case-insensitive search
+    query.$or = [
+      { title: searchRegex },
+      { description: searchRegex },
+      { instruction: searchRegex },
+      { category: searchRegex },
+      { subCategory: searchRegex },
+      { position: searchRegex }
+    ];
+  }
 
   // Find exercises based on query
   const exercises = await Exercise.find(query);
