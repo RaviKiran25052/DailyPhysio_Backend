@@ -54,13 +54,144 @@ const createRoutine = asyncHandler(async (req, res) => {
 // @access  Private
 const getRoutinesByUserId = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+  
+  // Extract query parameters for search, sort, and filter
+  const {
+    search = '',
+    sortBy = 'name',
+    sortOrder = 'asc',
+    category = '',
+    position = '',
+    page = 1,
+    limit = 10
+  } = req.query;
 
-  // Find all routines for the user and populate exercise data
-  const routines = await Routine.find({ userId })
-    .populate({
-      path: 'exerciseId',
-      select: 'title description instruction video image views favorites category subCategory position isPremium custom'
-    })
+  // Build the base query
+  let query = { userId };
+
+  // Build populate options
+  const populateOptions = {
+    path: 'exerciseId',
+    select: 'title description instruction video image views favorites category subCategory position isPremium custom'
+  };
+
+  // If we have filters, we need to use aggregation pipeline for better performance
+  if (search || category || position || sortBy !== 'name') {
+    const pipeline = [
+      // Match user's routines
+      { $match: { userId } },
+      
+      // Lookup exercise data
+      {
+        $lookup: {
+          from: 'exercises', // Assuming your exercise collection is named 'exercises'
+          localField: 'exerciseId',
+          foreignField: '_id',
+          as: 'exercise'
+        }
+      },
+      
+      // Unwind the exercise array (since it's a single document)
+      { $unwind: '$exercise' },
+      
+      // Apply search filter if provided
+      ...(search ? [{
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { 'exercise.title': { $regex: search, $options: 'i' } },
+            { 'exercise.category': { $regex: search, $options: 'i' } },
+            { 'exercise.position': { $regex: search, $options: 'i' } },
+            { 'exercise.description': { $regex: search, $options: 'i' } }
+          ]
+        }
+      }] : []),
+      
+      // Apply category filter if provided
+      ...(category ? [{
+        $match: { 'exercise.category': { $regex: category, $options: 'i' } }
+      }] : []),
+      
+      // Apply position filter if provided
+      ...(position ? [{
+        $match: { 'exercise.position': { $regex: position, $options: 'i' } }
+      }] : []),
+      
+      // Add sorting
+      {
+        $sort: {
+          ...(sortBy === 'name' && { name: sortOrder === 'asc' ? 1 : -1 }),
+          ...(sortBy === 'category' && { 'exercise.category': sortOrder === 'asc' ? 1 : -1 }),
+          ...(sortBy === 'position' && { 'exercise.position': sortOrder === 'asc' ? 1 : -1 }),
+          ...(sortBy === 'reps' && { reps: sortOrder === 'asc' ? 1 : -1 }),
+          ...(sortBy === 'hold' && { hold: sortOrder === 'asc' ? 1 : -1 }),
+          ...(sortBy === 'complete' && { complete: sortOrder === 'asc' ? 1 : -1 }),
+          ...(sortBy === 'updated' && { updatedAt: sortOrder === 'asc' ? 1 : -1 }),
+          // Default fallback sort
+          ...(sortBy === 'created' && { createdAt: sortOrder === 'asc' ? 1 : -1 })
+        }
+      },
+      
+      // Project the final structure
+      {
+        $project: {
+          routineId: '$_id',
+          name: 1,
+          reps: 1,
+          hold: 1,
+          complete: 1,
+          perform: 1,
+          exercise: '$exercise',
+          createdAt: 1,
+          updatedAt: 1
+        }
+      }
+    ];
+
+    // Add pagination if limit is specified and > 0
+    if (limit > 0) {
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: parseInt(limit) });
+    }
+
+    // Execute aggregation
+    const routines = await Routine.aggregate(pipeline);
+    
+    // Get total count for pagination (without limit)
+    const countPipeline = [...pipeline];
+    // Remove skip and limit for count
+    const skipIndex = countPipeline.findIndex(stage => stage.$skip);
+    if (skipIndex !== -1) {
+      countPipeline.splice(skipIndex, 2); // Remove both $skip and $limit
+    }
+    countPipeline.push({ $count: "total" });
+    
+    const countResult = await Routine.aggregate(countPipeline);
+    const totalCount = countResult[0]?.total || 0;
+
+    // Return 404 if no routines found and no search/filter applied
+    if (!routines.length && !search && !category && !position) {
+      res.status(404);
+      throw new Error('No routines found for this user');
+    }
+
+    return res.status(200).json({
+      success: true,
+      count: routines.length,
+      totalCount,
+      currentPage: parseInt(page),
+      totalPages: limit > 0 ? Math.ceil(totalCount / parseInt(limit)) : 1,
+      hasNextPage: limit > 0 ? parseInt(page) < Math.ceil(totalCount / parseInt(limit)) : false,
+      hasPrevPage: parseInt(page) > 1,
+      data: routines
+    });
+  }
+
+  // Simple query without filters - original logic
+  const routines = await Routine.find(query)
+    .populate(populateOptions)
+    .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
     .lean();
 
   // Return 404 if no routines found
@@ -79,6 +210,7 @@ const getRoutinesByUserId = asyncHandler(async (req, res) => {
       complete: routine.complete,
       perform: routine.perform,
       exercise: routine.exerciseId, // This contains the full exercise document
+      createdAt: routine.createdAt,
       updatedAt: routine.updatedAt || routine.createdAt
     };
   });
@@ -86,7 +218,55 @@ const getRoutinesByUserId = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     count: formattedRoutines.length,
+    totalCount: formattedRoutines.length,
+    currentPage: 1,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
     data: formattedRoutines
+  });
+});
+
+// Additional helper endpoint to get unique filter values
+const getRoutineFilters = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const pipeline = [
+    { $match: { userId } },
+    {
+      $lookup: {
+        from: 'exercises',
+        localField: 'exerciseId',
+        foreignField: '_id',
+        as: 'exercise'
+      }
+    },
+    { $unwind: '$exercise' },
+    {
+      $group: {
+        _id: null,
+        categories: { $addToSet: '$exercise.category' },
+        positions: { $addToSet: '$exercise.position' }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        categories: { $filter: { input: '$categories', cond: { $ne: ['$$this', null] } } },
+        positions: { $filter: { input: '$positions', cond: { $ne: ['$$this', null] } } }
+      }
+    }
+  ];
+
+  const result = await Routine.aggregate(pipeline);
+  const filters = result[0] || { categories: [], positions: [] };
+
+  res.status(200).json({
+    success: true,
+    data: {
+      categories: filters.categories.sort(),
+      positions: filters.positions.sort()
+    }
   });
 });
 
