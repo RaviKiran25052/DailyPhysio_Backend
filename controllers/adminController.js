@@ -111,25 +111,61 @@ const getTherapists = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getTherapistById = asyncHandler(async (req, res) => {
   try {
-    const therapist = await Therapist.findById(req.params.id);
+    const therapistId = req.params.id;
+
+    // Find the therapist
+    const therapist = await Therapist.findById(therapistId);
 
     if (!therapist) {
       res.status(404);
       throw new Error('Therapist not found');
     }
 
-    // Update request count
-    // await therapist.calculatePendingRequests();
+    // Fetch all consultations for this therapist
+    const consultations = await Consultation.find({ therapist_id: therapistId })
+      .populate('patient_id', 'fullName email profileImage')
+      .populate('recommendedExercises', 'title description category subCategory')
+      .sort({ createdAt: -1 });
+
+    // Fetch all exercises created by this therapist
+    const exercises = await Exercise.find({ 'custom.creatorId': therapistId })
+      .sort({ createdAt: -1 });
+
+    // Fetch all users created by this therapist
+    const users = await User.find({ 'creator.createdById': therapistId })
+      .select('fullName email profileImage membership role createdAt')
+      .sort({ createdAt: -1 });
+
+    // Calculate some statistics
+    const stats = {
+      totalConsultations: consultations.length,
+      activeConsultations: consultations.filter(c => c.request.status === 'active').length,
+      inactiveConsultations: consultations.filter(c => c.request.status === 'inactive').length,
+      totalExercises: exercises.length,
+      publicExercises: exercises.filter(e => e.custom.type === 'public').length,
+      privateExercises: exercises.filter(e => e.custom.type === 'private').length,
+      premiumExercises: exercises.filter(e => e.isPremium === true).length,
+      totalUsers: users.length,
+      activeUsers: users.filter(u => u.membership.some(m => m.status === 'active')).length
+    };
+
+    // Update consultation count (optional - uncomment if needed)
+    // await therapist.updateConsultationCount();
 
     res.json({
       success: true,
-      therapist
+      therapist,
+      consultations,
+      exercises,
+      users,
+      stats
     });
+
   } catch (error) {
     res.status(error.kind === 'ObjectId' ? 404 : 500);
     throw new Error(error.kind === 'ObjectId'
       ? 'Therapist not found'
-      : 'Error retrieving therapist: ' + error.message
+      : 'Error retrieving therapist details: ' + error.message
     );
   }
 });
