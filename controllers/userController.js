@@ -8,19 +8,30 @@ const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
 const Consultation = require('../models/Consultation');
 
+// Temporary OTP storage (in production, use Redis or database)
+const tempOTPs = new Map();
+
 // @desc    Register a new user
 // @route   POST /users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { fullName, email, password, creator } = req.body;
+  const { fullName, email, password, creator, otp } = req.body;
 
+  // Check if user already exists
   const userExists = await User.findOne({ email });
-
   if (userExists) {
     res.status(400);
     throw new Error('User already exists');
   }
 
+  // Verify OTP from temporary storage
+  const tempOTP = tempOTPs.get(email);
+  if (!tempOTP || tempOTP.otp !== otp || tempOTP.expires < Date.now()) {
+    res.status(400);
+    throw new Error('Invalid or expired OTP');
+  }
+
+  // Create user after OTP verification
   const user = await User.create({
     fullName,
     email,
@@ -29,6 +40,9 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
+    // Clean up temporary OTP after successful registration
+    tempOTPs.delete(email);
+
     res.status(201).json({
       _id: user._id,
       fullName: user.fullName,
@@ -40,6 +54,77 @@ const registerUser = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Invalid user data');
   }
+});
+
+// @desc    Send OTP (works for both existing and non-existing users)
+// @route   POST /users/sendOTP
+// @access  Public
+const sendOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  // Check if user exists
+  const user = await User.findOne({ email });
+
+  // Generate a random 4-digit OTP
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  const expirationTime = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  if (user) {
+    // Store OTP in existing user document
+    user.resetPasswordOTP = otp;
+    user.resetPasswordExpires = expirationTime;
+    await user.save();
+  } else {
+    // Store OTP in temporary storage for non-existing users
+    tempOTPs.set(email, {
+      otp,
+      expires: expirationTime
+    });
+  }
+
+  // Send email with OTP
+  const nodemailer = require('nodemailer');
+
+  // Create transporter
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'dailyphysio2025@gmail.com',
+      pass: 'ocqs nxia dbsp kqsm'
+    }
+  });
+
+  // Determine subject based on whether user exists
+  const subject = user ? 'Reset password' : 'Verify your email';
+  const purpose = user ? 'reset your password' : 'verify your email address';
+
+  // Create email content with HTML
+  const mailOptions = {
+    from: 'dailyphysio2025@gmail.com',
+    to: email,
+    subject: subject,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #6b46c1;">${user ? 'Password Reset Request' : 'Email Verification'}</h2>
+        <p>We received a request to ${purpose}. Please use the following OTP to complete the process:</p>
+        <h1 style="font-size: 32px; color: #6b46c1; text-align: center; padding: 10px; background-color: #f7f7f7; border-radius: 5px;"><strong>${otp}</strong></h1>
+        <p>This OTP will expire in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email or contact support if you have concerns.</p>
+        <p>Thank you,<br>The DailyPhysio Team</p>
+      </div>
+    `
+  };
+
+  // Send email
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Email error:', error);
+      res.status(500);
+      throw new Error('Failed to send email');
+    }
+  });
+
+  res.json({ message: 'OTP sent to email' });
 });
 
 // @desc    Auth user & get token
@@ -564,68 +649,6 @@ const updateMembership = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Generate and send OTP for password reset
-// @route   POST /users/forgot-password
-// @access  Public
-const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  // Check if user exists
-  const user = await User.findOne({ email });
-  if (!user) {
-    res.status(404);
-    throw new Error('User not found');
-  }
-
-  // Generate a random 4-digit OTP
-  const otp = Math.floor(1000 + Math.random() * 9000).toString();
-
-  // Store OTP in user document with expiration time (10 minutes)
-  user.resetPasswordOTP = otp;
-  user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  await user.save();
-
-  // Send email with OTP
-  const nodemailer = require('nodemailer');
-
-  // Create transporter
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'dailyphysio2025@gmail.com',
-      pass: 'ocqs nxia dbsp kqsm'
-    }
-  });
-
-  // Create email content with HTML
-  const mailOptions = {
-    from: 'dailyphysio2025@gmail.com',
-    to: email,
-    subject: 'Reset password',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #6b46c1;">Password Reset Request</h2>
-        <p>We received a request to reset your password. Please use the following OTP to complete your password reset:</p>
-        <h1 style="font-size: 32px; color: #6b46c1; text-align: center; padding: 10px; background-color: #f7f7f7; border-radius: 5px;"><strong>${otp}</strong></h1>
-        <p>This OTP will expire in 10 minutes.</p>
-        <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
-        <p>Thank you,<br>The DailyPhysio Team</p>
-      </div>
-    `
-  };
-
-  // Send email
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Email error:', error);
-      res.status(500);
-      throw new Error('Failed to send email');
-    }
-  });
-
-  res.json({ message: 'OTP sent to email' });
-});
-
 // @desc    Verify OTP for password reset
 // @route   POST /users/verify-otp
 // @access  Public
@@ -697,7 +720,7 @@ module.exports = {
   getConsultedExercises,
   getMembership,
   updateMembership,
-  forgotPassword,
+  sendOTP,
   verifyOTP,
   resetPassword
 }; 

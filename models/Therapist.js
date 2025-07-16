@@ -80,21 +80,24 @@ const therapistSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    membership: {
-      type: {
-        type: String,
-        enum: ["free", 'monthly', 'yearly'],
-        default: "free",
-      },
-      paymentDate: {
-        type: Date,
-        default: null,
-      },
-    },
-    followers: {
-      type: Number,
-      default: 0
-    }
+    membership: [
+      {
+        type: {
+          type: String,
+          enum: ["free", 'monthly', 'yearly'],
+          default: "free",
+        },
+        paymentDate: {
+          type: Date,
+          default: null,
+        },
+        status: {
+          type: String,
+          enum: ["active", "inactive"],
+          default: "active"
+        }
+      }
+    ]
   },
   {
     timestamps: true
