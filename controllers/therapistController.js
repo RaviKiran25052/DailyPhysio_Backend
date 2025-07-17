@@ -12,7 +12,7 @@ const Followers = require('../models/Followers');
 exports.registerTherapist = async (req, res) => {
     try {
         console.log(0);
-        
+
         const { email } = req.body;
 
         // Check if therapist already exists
@@ -25,7 +25,7 @@ exports.registerTherapist = async (req, res) => {
             });
         }
         console.log(1);
-        
+
         const therapistData = {
             name: req.body.name,
             email: req.body.email,
@@ -167,6 +167,150 @@ exports.getAllExercises = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+};
+
+exports.createExercise = async (req, res) => {
+    const {
+        title,
+        description,
+        instruction,
+        reps,
+        hold,
+        set,
+        perform,
+        category,
+        subCategory,
+        position,
+        isPremium
+    } = req.body;
+
+    // Determine creator type and ID
+    let createdBy = 'therapist';
+    let creatorId = req.therapist._id;
+
+    let imageUrls = [];
+    let videoUrl = null;
+
+    // Process uploaded files (local storage)
+    if (req.files) {
+        // Process images
+        if (req.files.images && req.files.images.length > 0) {
+            imageUrls = req.files.images.map(file => {
+                // Return the relative path to the file
+                const relativePath = file.path.replace(/\\/g, '/'); // Convert Windows paths to Unix style
+                return relativePath.split('/uploads/')[1]; // Store relative path from uploads folder
+            });
+        }
+
+        // Process video
+        if (req.files.video && req.files.video.length > 0) {
+            const videoFile = req.files.video[0];
+            const relativePath = videoFile.path.replace(/\\/g, '/');
+            videoUrl = relativePath.split('/uploads/')[1];
+        }
+    }
+
+    // Create the exercise
+    const exercise = await Exercise.create({
+        title,
+        description,
+        instruction,
+        reps: reps || 1,
+        hold: hold || 1,
+        set: set || 1,
+        perform: perform || { count: 1, type: 'day' },
+        video: videoUrl,
+        image: imageUrls,
+        category,
+        subCategory,
+        position,
+        isPremium: isPremium || false,
+        custom: {
+            createdBy,
+            type: 'public',
+            creatorId
+        }
+    });
+
+    // Include storage info in response
+    const response = {
+        ...exercise.toObject(),
+        storageInfo: req.storageInfo // Added by checkStorageLimit middleware
+    };
+
+    res.status(201).json(response);
+}
+
+exports.editExercise = async (req, res) => {
+    const exerciseId = req.params.id;
+
+    // Find the exercise
+    const exercise = await Exercise.findById(exerciseId);
+
+    if (!exercise) {
+        res.status(404);
+        throw new Error('Exercise not found');
+    }
+
+    // Extract fields from request
+    const {
+        title,
+        description,
+        instruction,
+        reps,
+        hold,
+        set,
+        perform,
+        category,
+        subCategory,
+        position,
+        isPremium,
+        custom,
+        oldImages,
+        oldVideo
+    } = req.body;
+
+    // Handle file uploads (images and videos)
+    let imageUrls = oldImages || [];
+    let videoUrl = oldVideo || null;
+
+    if (req.files) {
+        if (req.files.images) {
+            const newImages = req.files.images.map(file => {
+                // Return the relative path to the file
+                const relativePath = file.path.replace(/\\/g, '/'); // Convert Windows paths to Unix style
+                return relativePath.split('/uploads/')[1]; // Store relative path from uploads folder
+            });
+
+            imageUrls = [...imageUrls, ...newImages];
+        }
+
+        if (req.files.video) {
+            const videoFile = req.files.video[0];
+            const relativePath = videoFile.path.replace(/\\/g, '/');
+            videoUrl = relativePath.split('/uploads/')[1];
+        }
+    }
+
+    // Update the exercise
+    exercise.title = title || exercise.title;
+    exercise.description = description || exercise.description;
+    exercise.instruction = instruction || exercise.instruction;
+    exercise.reps = reps || exercise.reps;
+    exercise.hold = hold || exercise.hold;
+    exercise.set = set || exercise.set;
+    exercise.perform = perform || exercise.perform;
+    exercise.image = imageUrls;
+    exercise.video = videoUrl;
+    exercise.category = category || exercise.category;
+    exercise.subCategory = subCategory || exercise.subCategory;
+    exercise.position = position || exercise.position;
+    exercise.isPremium = isPremium !== undefined ? isPremium : exercise.isPremium;
+    exercise.custom = { ...exercise.custom, type: custom.type } || exercise.custom;
+
+    const updatedExercise = await exercise.save();
+
+    res.json(updatedExercise);
 };
 
 // Fetch all consultations

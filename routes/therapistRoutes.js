@@ -5,6 +5,7 @@ const router = express.Router();
 const therapistController = require('../controllers/therapistController');
 const { protectTherapist } = require('../middleware/authMiddleware');
 const multer = require('multer');
+const { therapySessionUpload, checkStorageLimit, validateTherapySessionUpload } = require('../utils/upload');
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -33,7 +34,27 @@ router.get('/analytics', protectTherapist, therapistController.getAnalytics);
 router.get('/users', protectTherapist, therapistController.getCreatedUsers);
 
 // Fetch all exercises
-router.get('/exercises', protectTherapist, therapistController.getAllExercises);
+router.route('/exercises')
+	.get(protectTherapist, therapistController.getAllExercises)
+	.post(protectTherapist,
+		therapySessionUpload.fields([
+			{ name: 'images', maxCount: 10 },
+			{ name: 'video', maxCount: 1 }
+		]),
+		checkStorageLimit,
+		validateTherapySessionUpload,
+		therapistController.createExercise
+	);
+
+router.put('/exercises/:id', protectTherapist,
+	therapySessionUpload.fields([
+		{ name: 'images', maxCount: 10 },
+		{ name: 'video', maxCount: 1 }
+	]),
+	checkStorageLimit,
+	validateTherapySessionUpload,
+	therapistController.editExercise
+);
 
 // Create a consultation entry
 router.route('/consultations')

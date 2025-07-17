@@ -27,9 +27,9 @@ const therapistSchema = new mongoose.Schema(
     },
     specializations: {
       type: [String],
-      required:true,
+      required: true,
       validate: {
-        validator: function(v) {
+        validator: function (v) {
           return v && v.length > 0;
         },
         message: 'At least one specialization is required'
@@ -97,7 +97,11 @@ const therapistSchema = new mongoose.Schema(
           default: "active"
         }
       }
-    ]
+    ],
+    storage: {
+      type: Number,
+      default: 10737418240,
+    }
   },
   {
     timestamps: true

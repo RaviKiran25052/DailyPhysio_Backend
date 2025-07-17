@@ -1,6 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 const connectDB = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
@@ -23,6 +24,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
 // Routes
 app.use('/hep2go/public', publicRoutes);
 app.use('/hep2go/users', userRoutes);
@@ -30,6 +32,8 @@ app.use('/hep2go/exercises', exerciseRoutes);
 app.use('/hep2go/therapist', therapistRoutes);
 app.use('/hep2go/admin', adminRoutes);
 app.use('/hep2go/routines', routineRoutes);
+// Static file serving for uploads
+app.use('/hep2go/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Base route
 app.get('/', (req, res) => {

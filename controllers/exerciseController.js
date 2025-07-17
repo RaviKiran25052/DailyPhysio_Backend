@@ -380,10 +380,7 @@ const createExercise = asyncHandler(async (req, res) => {
   let createdBy = 'admin';
   let creatorId = null; // Default admin ID
 
-  if (req.therapist) {
-    createdBy = 'therapist';
-    creatorId = req.therapist._id;
-  } else if (req.user && currentMembership && currentMembership.type !== 'free' && currentMembership.status === 'active') {
+  if (req.user && currentMembership && currentMembership.type !== 'free' && currentMembership.status === 'active') {
     createdBy = 'proUser';
     creatorId = req.user._id;
   } else if (req.user && req.user.role === 'isAdmin') {
