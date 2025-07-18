@@ -31,7 +31,9 @@ router.route('/')
 router.get('/analytics', protectTherapist, therapistController.getAnalytics);
 
 // Fetch users created by therapist
-router.get('/users', protectTherapist, therapistController.getCreatedUsers);
+router.route('/users')
+	.get(protectTherapist, therapistController.getCreatedUsers)
+	.post(protectTherapist, therapistController.registerUser);
 
 // Fetch all exercises
 router.route('/exercises')

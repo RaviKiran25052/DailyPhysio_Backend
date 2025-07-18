@@ -97,11 +97,7 @@ const therapistSchema = new mongoose.Schema(
           default: "active"
         }
       }
-    ],
-    storage: {
-      type: Number,
-      default: 10737418240,
-    }
+    ]
   },
   {
     timestamps: true

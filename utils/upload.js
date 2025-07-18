@@ -10,9 +10,9 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Storage limits for therapists (in bytes)
 const STORAGE_LIMITS = {
-	FREE_TIER: 100 * 1024 * 1024,    // 100MB
-	PREMIUM_TIER: 500 * 1024 * 1024, // 500MB
-	ENTERPRISE_TIER: 1024 * 1024 * 1024 // 1GB
+	FREE: 10 * 1024 * 1024 * 1024,    // 10GB
+	MONTHLY: 30 * 1024 * 1024 * 1024, // 30GB
+	YEARLY: 60 * 1024 * 1024 * 1024 // 60GB
 };
 
 // Configure storage
@@ -40,7 +40,7 @@ const storage = multer.diskStorage({
 const therapySessionFileFilter = (req, file, cb) => {
 	const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 	const allowedVideoTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/mkv'];
-	
+
 	if (allowedImageTypes.includes(file.mimetype) || allowedVideoTypes.includes(file.mimetype)) {
 		cb(null, true);
 	} else {
@@ -67,12 +67,12 @@ const getFolderSize = (folderPath) => {
 // Function to get therapist's storage limit based on their tier
 const getStorageLimit = (therapistTier) => {
 	switch (therapistTier) {
-		case 'premium':
-			return STORAGE_LIMITS.PREMIUM_TIER;
-		case 'enterprise':
-			return STORAGE_LIMITS.ENTERPRISE_TIER;
+		case 'monthly':
+			return STORAGE_LIMITS.MONTHLY;
+		case 'yearly':
+			return STORAGE_LIMITS.YEARLY;
 		default:
-			return STORAGE_LIMITS.FREE_TIER;
+			return STORAGE_LIMITS.FREE;
 	}
 };
 
@@ -100,17 +100,18 @@ const checkStorageLimit = async (req, res, next) => {
 	try {
 		const therapist = req.therapist;
 		const therapistId = therapist._id;
+		// todo
 		const therapistTier = therapist.tier || 'free'; // Default to free tier
-		
+
 		// Get therapist's folder path
 		const therapistDir = path.join(uploadsDir, therapistId.toString());
-		
+
 		// Calculate current storage usage
 		const currentUsage = getFolderSize(therapistDir);
-		
+
 		// Get storage limit for this therapist
 		const storageLimit = getStorageLimit(therapistTier);
-		
+
 		// Calculate size of new files being uploaded
 		let newFilesSize = 0;
 		if (req.files) {
@@ -126,7 +127,7 @@ const checkStorageLimit = async (req, res, next) => {
 				});
 			}
 		}
-		
+
 		// Check if upload would exceed storage limit
 		if (currentUsage + newFilesSize > storageLimit) {
 			const remainingStorage = storageLimit - currentUsage;
@@ -138,14 +139,14 @@ const checkStorageLimit = async (req, res, next) => {
 				remainingStorage: formatBytes(remainingStorage)
 			});
 		}
-		
+
 		// Add storage info to request for later use
 		req.storageInfo = {
 			currentUsage: formatBytes(currentUsage),
 			storageLimit: formatBytes(storageLimit),
 			remainingStorage: formatBytes(storageLimit - currentUsage - newFilesSize)
 		};
-		
+
 		next();
 	} catch (error) {
 		console.error('Error checking storage limit:', error);
@@ -162,18 +163,18 @@ const validateTherapySessionUpload = async (req, res, next) => {
 		// Check if any files were uploaded
 		const hasImages = req.files?.images && req.files.images.length > 0;
 		const hasVideo = req.files?.video && req.files.video.length > 0;
-		
+
 		// if (!hasImages && !hasVideo) {
 		// 	return res.status(400).json({
 		// 		status: 'error',
 		// 		message: 'No files uploaded'
 		// 	});
 		// }
-		
+
 		// Count file types
 		const videoCount = hasVideo ? req.files.video.length : 0;
 		const imageCount = hasImages ? req.files.images.length : 0;
-		
+
 		// Validate file limits (flexible - allow both images and videos)
 		if (videoCount > 1) {
 			return res.status(400).json({
@@ -181,14 +182,14 @@ const validateTherapySessionUpload = async (req, res, next) => {
 				message: 'Maximum 1 video is allowed per upload'
 			});
 		}
-		
+
 		if (imageCount > 10) {
 			return res.status(400).json({
 				status: 'error',
 				message: 'Maximum 10 images allowed per upload'
 			});
 		}
-		
+
 		next();
 	} catch (error) {
 		console.error('Error validating therapy session upload:', error);
@@ -205,22 +206,22 @@ const getStorageInfo = async (req, res, next) => {
 		const therapist = req.therapist;
 		const therapistId = therapist._id;
 		const therapistTier = therapist.tier || 'free';
-		
+
 		// Get therapist's folder path
 		const therapistDir = path.join(uploadsDir, therapistId.toString());
-		
+
 		// Calculate current storage usage
 		const currentUsage = getFolderSize(therapistDir);
 		const storageLimit = getStorageLimit(therapistTier);
 		const remainingStorage = storageLimit - currentUsage;
-		
+
 		req.storageInfo = {
 			currentUsage: formatBytes(currentUsage),
 			storageLimit: formatBytes(storageLimit),
 			remainingStorage: formatBytes(remainingStorage),
 			usagePercentage: Math.round((currentUsage / storageLimit) * 100)
 		};
-		
+
 		next();
 	} catch (error) {
 		console.error('Error getting storage info:', error);

@@ -540,6 +540,38 @@ exports.deleteConsultation = async (req, res) => {
     }
 };
 
+// create user
+exports.registerUser = async (req, res) => {
+    const { fullName, email, password, creator } = req.body;
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+        res.status(400);
+        throw new Error('User already exists');
+    }
+
+    // Create user after OTP verification
+    const user = await User.create({
+        fullName,
+        email,
+        password,
+        ...(creator && { creator })
+    });
+
+    if (user) {
+        res.status(201).json({
+            _id: user._id,
+            fullName: user.fullName,
+            email: user.email,
+            pro: user.pro
+        });
+    } else {
+        res.status(400);
+        throw new Error('Invalid user data');
+    }
+};
+
 // Get users created by therapist
 exports.getCreatedUsers = async (req, res) => {
     try {
