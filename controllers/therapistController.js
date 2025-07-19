@@ -322,12 +322,12 @@ exports.getConsultations = async (req, res) => {
                 model: 'User',
                 select: 'fullName email profileImage'
             })
-            .populate({
-                path: 'recommendedExercises',
-                model: 'Exercise',
-                select: 'title description instruction image category subCategory position reps hold set perform'
-            })
+            .populate('recommendedExercises')
             .sort({ createdAt: -1 });
+
+        for (const consultation of consultations) {
+            await consultation.checkExpiration();
+        }
 
         res.status(200).json(consultations);
     } catch (error) {
@@ -419,6 +419,10 @@ exports.getAnalytics = async (req, res) => {
             'createdAt': { $gte: sixMonthsAgo }
         }).sort({ createdAt: 1 });
 
+        for (const consultation of consultations) {
+            await consultation.checkExpiration();
+        }
+
         // Get monthly consultation counts
         const monthlyConsultations = Array(6).fill(0);
         const currentMonth = new Date().getMonth();
@@ -488,7 +492,7 @@ exports.updateConsultation = async (req, res) => {
         }
 
         // Calculate new expiration date based on creation date and activeDays
-        const expiresOn = new Date(consultation.createdAt);
+        const expiresOn = new Date();
         expiresOn.setDate(expiresOn.getDate() + activeDays);
 
         // Update consultation
@@ -506,11 +510,7 @@ exports.updateConsultation = async (req, res) => {
             path: 'patient_id',
             model: 'User',
             select: 'fullName email profileImage'
-        }).populate({
-            path: 'recommendedExercises',
-            model: 'Exercise',
-            select: 'title description instruction image category subCategory position reps hold set perform'
-        });
+        }).populate('recommendedExercises');
 
         res.status(200).json(updatedConsultation);
     } catch (error) {

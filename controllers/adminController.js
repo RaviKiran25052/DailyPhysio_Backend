@@ -124,8 +124,16 @@ const getTherapistById = asyncHandler(async (req, res) => {
     // Fetch all consultations for this therapist
     const consultations = await Consultation.find({ therapist_id: therapistId })
       .populate('patient_id', 'fullName email profileImage')
-      .populate('recommendedExercises', 'title description category subCategory')
+      .populate('recommendedExercises')
       .sort({ createdAt: -1 });
+
+    for (const consultation of consultations) {
+      await consultation.checkExpiration();
+    }
+    
+    for (const consultation of consultations) {
+      await consultation.checkExpiration();
+    }
 
     // Fetch all exercises created by this therapist
     const exercises = await Exercise.find({ 'custom.creatorId': therapistId })
@@ -270,6 +278,10 @@ const getConsultations = asyncHandler(async (req, res) => {
       .populate('patient_id', 'fullName email')
       .populate('recommendedExercises', 'title bodyPart');
 
+    for (const consultation of consultations) {
+      await consultation.checkExpiration();
+    }
+
     res.json({
       success: true,
       consultations,
@@ -297,7 +309,11 @@ const getConsultationsByTherapist = asyncHandler(async (req, res) => {
 
     const consultations = await Consultation.find({ therapist_id: therapistId })
       .populate('patient_id', 'fullName email')
-      .populate('recommendedExercises', 'title bodyPart');
+      .populate('recommendedExercises');
+
+    for (const consultation of consultations) {
+      await consultation.checkExpiration();
+    }
 
     res.json({
       success: true,

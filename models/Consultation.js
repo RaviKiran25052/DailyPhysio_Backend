@@ -55,24 +55,20 @@ consultationSchema.methods.activateConsultation = async function (activeDays) {
 };
 
 // Method to check if a consultation is expired (calculated, not stored)
-consultationSchema.methods.checkExpiration = async function() {
-  if (this.request.status !== 'active') {
-    return false;
-  }
-
-  const createdAt = this.createdAt;
+consultationSchema.methods.checkExpiration = async function () {
+  const expiresOn = this.request.expiresOn;
   const now = new Date();
-
-  const expirationDate = new Date(createdAt);
-  expirationDate.setDate(expirationDate.getDate() + this.request.activeDays);
-
+  const expirationDate = new Date(expiresOn);
+  
   if (now > expirationDate) {
     this.request.status = 'inactive';
     await this.save();
     return true;
+  } else {
+    this.request.status = 'active';
+    await this.save();
+    return false;
   }
-
-  return false;
 };
 
 const Consultation = mongoose.model('Consultation', consultationSchema);
