@@ -54,7 +54,6 @@ router.put('/exercises/:id', protectTherapist,
 		{ name: 'video', maxCount: 1 }
 	]),
 	checkStorageLimit,
-	validateTherapySessionUpload,
 	therapistController.editExercise
 );
 

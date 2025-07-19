@@ -164,12 +164,12 @@ const validateTherapySessionUpload = async (req, res, next) => {
 		const hasImages = req.files?.images && req.files.images.length > 0;
 		const hasVideo = req.files?.video && req.files.video.length > 0;
 
-		// if (!hasImages && !hasVideo) {
-		// 	return res.status(400).json({
-		// 		status: 'error',
-		// 		message: 'No files uploaded'
-		// 	});
-		// }
+		if (!hasImages && !hasVideo) {
+			return res.status(400).json({
+				status: 'error',
+				message: 'No files uploaded'
+			});
+		}
 
 		// Count file types
 		const videoCount = hasVideo ? req.files.video.length : 0;
@@ -200,12 +200,11 @@ const validateTherapySessionUpload = async (req, res, next) => {
 	}
 };
 
-// Middleware to get therapist's storage info
-const getStorageInfo = async (req, res, next) => {
+// Get therapist's storage info
+const getStorageInfo = async (therapist) => {
 	try {
-		const therapist = req.therapist;
 		const therapistId = therapist._id;
-		const therapistTier = therapist.tier || 'free';
+		const therapistTier = therapist.membership.find(m => m.status === "active")?.type || 'free';
 
 		// Get therapist's folder path
 		const therapistDir = path.join(uploadsDir, therapistId.toString());
@@ -215,20 +214,17 @@ const getStorageInfo = async (req, res, next) => {
 		const storageLimit = getStorageLimit(therapistTier);
 		const remainingStorage = storageLimit - currentUsage;
 
-		req.storageInfo = {
+		const storageInfo = {
 			currentUsage: formatBytes(currentUsage),
 			storageLimit: formatBytes(storageLimit),
 			remainingStorage: formatBytes(remainingStorage),
 			usagePercentage: Math.round((currentUsage / storageLimit) * 100)
 		};
 
-		next();
+		return storageInfo;
 	} catch (error) {
 		console.error('Error getting storage info:', error);
-		res.status(500).json({
-			status: 'error',
-			message: 'Error retrieving storage information'
-		});
+		return;
 	}
 };
 

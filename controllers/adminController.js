@@ -4,6 +4,7 @@ const Exercise = require('../models/Exercise');
 const Therapist = require('../models/Therapist');
 const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
+const { getStorageInfo } = require('../utils/upload');
 
 const loginAdmin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -121,6 +122,8 @@ const getTherapistById = asyncHandler(async (req, res) => {
       throw new Error('Therapist not found');
     }
 
+    const storageInfo = await getStorageInfo(therapist);
+
     // Fetch all consultations for this therapist
     const consultations = await Consultation.find({ therapist_id: therapistId })
       .populate('patient_id', 'fullName email profileImage')
@@ -159,6 +162,7 @@ const getTherapistById = asyncHandler(async (req, res) => {
     res.json({
       success: true,
       therapist,
+      storageInfo,
       consultations,
       exercises,
       users,
