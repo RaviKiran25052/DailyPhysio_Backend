@@ -130,10 +130,6 @@ const getTherapistById = asyncHandler(async (req, res) => {
     for (const consultation of consultations) {
       await consultation.checkExpiration();
     }
-    
-    for (const consultation of consultations) {
-      await consultation.checkExpiration();
-    }
 
     // Fetch all exercises created by this therapist
     const exercises = await Exercise.find({ 'custom.creatorId': therapistId })
