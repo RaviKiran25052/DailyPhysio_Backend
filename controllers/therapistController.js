@@ -383,26 +383,6 @@ exports.activateConsultation = async (req, res) => {
     }
 };
 
-// Check if a consultation is expired
-exports.checkConsultationExpiration = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const consultation = await Consultation.findById(id);
-        if (!consultation) {
-            return res.status(404).json({ message: "Consultation not found." });
-        }
-
-        const expired = await consultation.checkExpiration();
-        res.status(200).json({
-            expired,
-            status: consultation.request.status
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
 exports.getAnalytics = async (req, res) => {
     try {
         const therapistId = req.therapist._id;
