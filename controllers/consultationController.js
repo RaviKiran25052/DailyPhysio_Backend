@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 // @route   GET /api/consultations/:id
 // @access  Private (Patient/Therapist)
 const getConsultationByID = asyncHandler(async (req, res) => {
-	const consultationId = req.params.id;	
+	const consultationId = req.params.id;
 
 	// Validate ObjectId format
 	if (!mongoose.Types.ObjectId.isValid(consultationId)) {
@@ -86,6 +86,9 @@ const getConsultedExerciseByID = asyncHandler(async (req, res) => {
 			res.status(403);
 			throw new Error('This exercise is not publicly accessible');
 		}
+		exercise.views += 1;
+		await exercise.save();
+		
 		res.status(200).json({
 			success: true,
 			message: 'Exercise retrieved successfully',
