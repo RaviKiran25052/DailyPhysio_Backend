@@ -1,12 +1,13 @@
 const asyncHandler = require('express-async-handler');
 const Consultation = require('../models/Consultation');
+const Exercise = require('../models/Exercise');
 const mongoose = require('mongoose');
 
 // @desc    Get consultation by ID with populated data
 // @route   GET /api/consultations/:id
 // @access  Private (Patient/Therapist)
 const getConsultationByID = asyncHandler(async (req, res) => {
-	const consultationId = req.params.id;
+	const consultationId = req.params.id;	
 
 	// Validate ObjectId format
 	if (!mongoose.Types.ObjectId.isValid(consultationId)) {
@@ -62,6 +63,45 @@ const getConsultationByID = asyncHandler(async (req, res) => {
 	}
 });
 
+const getConsultedExerciseByID = asyncHandler(async (req, res) => {
+	const exerciseId = req.params.id;
+
+	// Validate ObjectId format
+	if (!mongoose.Types.ObjectId.isValid(exerciseId)) {
+		res.status(400);
+		throw new Error('Invalid exercise ID format');
+	}
+
+	try {
+		// Find Exercise from Exercise model
+		const exercise = await Exercise.findById(exerciseId);
+
+		// Check if exercise exists
+		if (!exercise) {
+			res.status(404);
+			throw new Error('Exercise not found');
+		}
+		// Check if exercise is public
+		if (exercise.custom.type !== 'public') {
+			res.status(403);
+			throw new Error('This exercise is not publicly accessible');
+		}
+		res.status(200).json({
+			success: true,
+			message: 'Exercise retrieved successfully',
+			data: exercise
+		});
+	} catch (error) {
+		// Handle specific mongoose/mongodb errors
+		if (error.name === 'CastError') {
+			res.status(400);
+			throw new Error('Invalid exercise ID format');
+		}
+		throw error;
+	}
+});
+
 module.exports = {
 	getConsultationByID,
+	getConsultedExerciseByID
 };
