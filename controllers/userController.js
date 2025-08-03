@@ -7,6 +7,7 @@ const Exercise = require('../models/Exercise');
 const Therapist = require('../models/Therapist');
 const Followers = require('../models/Followers');
 const Consultation = require('../models/Consultation');
+const { sendEmail } = require('../utils/email');
 
 // Temporary OTP storage (in production, use Redis or database)
 const tempOTPs = new Map();
@@ -82,28 +83,12 @@ const sendOTP = asyncHandler(async (req, res) => {
     });
   }
 
-  // Send email with OTP
-  const nodemailer = require('nodemailer');
-
-  // Create transporter
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'dailyphysio2025@gmail.com',
-      pass: 'ocqs nxia dbsp kqsm'
-    }
-  });
-
   // Determine subject based on whether user exists
   const subject = user ? 'Reset password' : 'Verify your email';
   const purpose = user ? 'reset your password' : 'verify your email address';
 
   // Create email content with HTML
-  const mailOptions = {
-    from: 'dailyphysio2025@gmail.com',
-    to: email,
-    subject: subject,
-    html: `
+  const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #6b46c1;">${user ? 'Password Reset Request' : 'Email Verification'}</h2>
         <p>We received a request to ${purpose}. Please use the following OTP to complete the process:</p>
@@ -112,18 +97,10 @@ const sendOTP = asyncHandler(async (req, res) => {
         <p>If you did not request this, please ignore this email or contact support if you have concerns.</p>
         <p>Thank you,<br>The DailyPhysio Team</p>
       </div>
-    `
-  };
+    `;
 
   // Send email
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Email error:', error);
-      res.status(500);
-      throw new Error('Failed to send email');
-    }
-  });
-
+  await sendEmail({ to: email, subject, html });
   res.json({ message: 'OTP sent to email' });
 });
 

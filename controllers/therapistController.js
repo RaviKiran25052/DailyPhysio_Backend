@@ -7,6 +7,7 @@ const Consultation = require('../models/Consultation');
 const generateToken = require('../utils/generateToken');
 const { uploadToCloudinary } = require('../utils/cloudinary');
 const Followers = require('../models/Followers');
+const { sendEmail } = require('../utils/email');
 
 // Create a new therapist
 exports.registerTherapist = async (req, res) => {
@@ -343,6 +344,7 @@ exports.createConsultation = async (req, res) => {
         if (!userId) {
             return res.status(400).json({ message: "User ID is required." });
         }
+
         const expiresOn = new Date();
         expiresOn.setDate(expiresOn.getDate() + activeDays);
 
@@ -354,13 +356,53 @@ exports.createConsultation = async (req, res) => {
             notes: desp.trim()
         });
 
-        await consultation.save();
+        // Fetch user email
+        const patient = await User.findById(userId);
+        if (!patient || !patient.email) {
+            return res.status(404).json({ message: "Patient not found or missing email." });
+        }
 
-        // Optionally activate consultation upon creation
+        // Get exercise titles
+        const exerciseDocs = await Exercise.find({ _id: { $in: exercises } });
+        const exerciseList = exerciseDocs.map(ex => `<li>${ex.title}</li>`).join('');
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4324';
+
+        // Construct email content
+        const consultationLink = `${frontendUrl}/consultation/${consultation._id}`;
+        const subject = 'Your New Consultation Details';
+
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 24px;">
+                <h2 style="color: #007b78;">🩺 New Consultation Created</h2>
+                <p>Hello ${patient.fullName || 'Patient'},</p>
+                <p>Your therapist has created a new consultation for you. Please review the details and recommended exercises using the link below.</p>
+
+                <p><strong>Note from Therapist:</strong></p>
+                <div style="background-color: #f9f9f9; padding: 16px; border-left: 4px solid #007b78; margin-bottom: 20px;">
+                    ${desp.trim() || 'No notes provided.'}
+                </div>
+
+                <p><strong>Recommended Exercises:</strong></p>
+                <ul style="padding-left: 20px; color: #333;">
+                    ${exerciseList || '<li>No exercises assigned.</li>'}
+                </ul>
+
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${consultationLink}" target="_blank" style="display: inline-block; background-color: #007b78; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none;">View Consultation</a>
+                </div>
+
+                <p style="color: #666;">This Exercises are valid until <strong>${expiresOn.toDateString()}</strong>.</p>
+                <p>Thank you,<br>The DailyPhysio Team</p>
+            </div>
+        `;
+
+        await sendEmail({ to: patient.email, subject, html });
+        await consultation.save();
         await consultation.activateConsultation(activeDays);
 
         res.status(201).json(consultation);
     } catch (error) {
+        console.error('Consultation creation error:', error);
         res.status(400).json({ message: error.message });
     }
 };
