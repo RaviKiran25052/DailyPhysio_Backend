@@ -10,6 +10,7 @@ const userRoutes = require('./routes/userRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
 const adminRoutes = require('./routes/adminRoute');
 const therapistRoutes = require('./routes/therapistRoutes');
+const consultationRoutes = require('./routes/consultationRoutes');
 const routineRoutes = require('./routes/routineRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 
@@ -30,6 +31,7 @@ app.use('/hep2go/public', publicRoutes);
 app.use('/hep2go/users', userRoutes);
 app.use('/hep2go/exercises', exerciseRoutes);
 app.use('/hep2go/therapist', therapistRoutes);
+app.use('/hep2go/consultation', consultationRoutes);
 app.use('/hep2go/admin', adminRoutes);
 app.use('/hep2go/routines', routineRoutes);
 // Static file serving for uploads
