@@ -1,7 +1,7 @@
 {
-  "name": "hep2go-backend",
+  "name": "dailyphysio-backend",
   "version": "1.0.0",
-  "description": "HEP2GO backend API",
+  "description": "dailyphysio backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

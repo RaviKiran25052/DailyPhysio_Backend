@@ -27,15 +27,15 @@ app.use(express.json());
 
 
 // Routes
-app.use('/hep2go/public', publicRoutes);
-app.use('/hep2go/users', userRoutes);
-app.use('/hep2go/exercises', exerciseRoutes);
-app.use('/hep2go/therapist', therapistRoutes);
-app.use('/hep2go/consultation', consultationRoutes);
-app.use('/hep2go/admin', adminRoutes);
-app.use('/hep2go/routines', routineRoutes);
+app.use('/dailyphysio/public', publicRoutes);
+app.use('/dailyphysio/users', userRoutes);
+app.use('/dailyphysio/exercises', exerciseRoutes);
+app.use('/dailyphysio/therapist', therapistRoutes);
+app.use('/dailyphysio/consultation', consultationRoutes);
+app.use('/dailyphysio/admin', adminRoutes);
+app.use('/dailyphysio/routines', routineRoutes);
 // Static file serving for uploads
-app.use('/hep2go/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/dailyphysio/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Base route
 app.get('/', (req, res) => {

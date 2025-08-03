@@ -393,11 +393,11 @@ const createExercise = asyncHandler(async (req, res) => {
 
   if (req.files) {
     if (req.files.images) {
-      imageUrls = await uploadMultipleFiles(req.files.images, 'image', 'hep2go/images');
+      imageUrls = await uploadMultipleFiles(req.files.images, 'image', 'dailyphysio/images');
     }
 
     if (req.files.video) {
-      videoUrl = await uploadToCloudinary(req.files.video[0], 'video', 'hep2go/videos');
+      videoUrl = await uploadToCloudinary(req.files.video[0], 'video', 'dailyphysio/videos');
     }
   }
 
@@ -483,12 +483,12 @@ const editExercise = asyncHandler(async (req, res) => {
 
   if (req.files) {
     if (req.files.images) {
-      const newImages = await uploadMultipleFiles(req.files.images, 'image', 'hep2go/images');
+      const newImages = await uploadMultipleFiles(req.files.images, 'image', 'dailyphysio/images');
       imageUrls = [...imageUrls, ...newImages];
     }
 
     if (req.files.video) {
-      const newVideo = await uploadToCloudinary(req.files.video[0], 'video', 'hep2go/videos');
+      const newVideo = await uploadToCloudinary(req.files.video[0], 'video', 'dailyphysio/videos');
       videoUrl = newVideo;
     }
   }

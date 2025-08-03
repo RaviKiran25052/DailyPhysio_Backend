@@ -160,7 +160,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (req.file) {
       try {
         // Upload image to Cloudinary
-        user.profileImage = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+        user.profileImage = await uploadToCloudinary(req.file, 'image', 'dailyphysio/images');
 
       } catch (uploadError) {
         res.status(500);

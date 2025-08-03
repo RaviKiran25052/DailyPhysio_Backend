@@ -42,7 +42,7 @@ exports.registerTherapist = async (req, res) => {
         if (req.file) {
             try {
                 // Upload image to Cloudinary
-                therapistData.profilePic = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+                therapistData.profilePic = await uploadToCloudinary(req.file, 'image', 'dailyphysio/images');
             } catch (uploadError) {
                 res.status(500);
                 throw new Error('Image upload failed');
@@ -122,7 +122,7 @@ exports.updateTherapist = async (req, res) => {
         if (req.file) {
             try {
                 // Upload image to Cloudinary
-                therapist.profilePic = await uploadToCloudinary(req.file, 'image', 'hep2go/images');
+                therapist.profilePic = await uploadToCloudinary(req.file, 'image', 'dailyphysio/images');
             } catch (uploadError) {
                 res.status(500);
                 throw new Error('Image upload failed');
