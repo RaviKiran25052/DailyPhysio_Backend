@@ -1,0 +1,49 @@
+Todo:
+therapist membership
+therapist payment
+timestamps - IST
+
+> microservice
+> consultation - active days
+> user - verify on registration
+> consulted exercises - sort
+> therapist management - full details
+> exercise upload management
+> consultation status - update
+> therapist management - data consumed
+* exercise management - therapist name
+* user verification link.
+
+Done:
+password - view
+filters - hide premium categories
+save routine - default -> recommended
+admin - users created by therapist
+top therapists cards - exercise count
+user profile - consulted exercises same as therapist consultations
+**User - premium expiration
+
+optional:
+send email credentials for user after account creatation by therapist
+**therapist - reg (profile pic)
+therapist decline confirm modal for admin
+
+
+    membership: [
+      {
+        type: {
+          type: String,
+          enum: ["free", 'monthly', 'yearly'],
+          default: "free",
+        },
+        paymentDate: {
+          type: Date,
+          default: null,
+        },
+        status: {
+          type: String,
+          enum: ["active", "inactive"],
+          default: "inactive"
+        }
+      }
+    ],
