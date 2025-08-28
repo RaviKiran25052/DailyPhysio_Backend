@@ -25,7 +25,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
 // Routes
 app.use('/dailyphysio/public', publicRoutes);
 app.use('/dailyphysio/users', userRoutes);
@@ -34,6 +33,7 @@ app.use('/dailyphysio/therapist', therapistRoutes);
 app.use('/dailyphysio/consultation', consultationRoutes);
 app.use('/dailyphysio/admin', adminRoutes);
 app.use('/dailyphysio/routines', routineRoutes);
+
 // Static file serving for uploads
 app.use('/dailyphysio/uploads', express.static(path.join(__dirname, 'uploads')));
 
