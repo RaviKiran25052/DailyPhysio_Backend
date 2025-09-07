@@ -5,7 +5,7 @@ const router = express.Router();
 const therapistController = require('../controllers/therapistController');
 const { protectTherapist } = require('../middleware/authMiddleware');
 const multer = require('multer');
-const { therapySessionUpload, checkStorageLimit, validateTherapySessionUpload } = require('../utils/upload');
+const { therapyUpload, checkStorageLimit, validatetherapyUpload } = require('../utils/upload');
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -39,17 +39,17 @@ router.route('/users')
 router.route('/exercises')
 	.get(protectTherapist, therapistController.getAllExercises)
 	.post(protectTherapist,
-		therapySessionUpload.fields([
+		therapyUpload.fields([
 			{ name: 'images', maxCount: 10 },
 			{ name: 'video', maxCount: 1 }
 		]),
 		checkStorageLimit,
-		validateTherapySessionUpload,
+		validatetherapyUpload,
 		therapistController.createExercise
 	);
 
 router.put('/exercises/:id', protectTherapist,
-	therapySessionUpload.fields([
+	therapyUpload.fields([
 		{ name: 'images', maxCount: 10 },
 		{ name: 'video', maxCount: 1 }
 	]),

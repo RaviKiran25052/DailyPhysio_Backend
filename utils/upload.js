@@ -8,6 +8,11 @@ if (!fs.existsSync(uploadsDir)) {
 	fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+const exercisesDir = path.join(__dirname, '../uploads/exercises');
+if (!fs.existsSync(exercisesDir)) {
+	fs.mkdirSync(exercisesDir, { recursive: true });
+}
+
 // Storage limits for therapists (in bytes)
 const STORAGE_LIMITS = {
 	FREE: 10 * 1024 * 1024 * 1024,    // 10GB
@@ -36,8 +41,20 @@ const storage = multer.diskStorage({
 	}
 });
 
+// Storage for admin exercises (no limits)
+const exerciseStorage = multer.diskStorage({
+	destination: function (req, file, cb) {
+		cb(null, exercisesDir);
+	},
+	filename: function (req, file, cb) {
+		const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+		const extension = path.extname(file.originalname);
+		cb(null, file.fieldname + '-' + uniqueSuffix + extension);
+	}
+});
+
 // Combined file filter for therapy session uploads (1 video OR multiple images)
-const therapySessionFileFilter = (req, file, cb) => {
+const fileFilter = (req, file, cb) => {
 	const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 	const allowedVideoTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/mkv'];
 
@@ -84,16 +101,6 @@ const formatBytes = (bytes) => {
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
 	return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
-
-// Configure multer for therapy session uploads
-const therapySessionUpload = multer({
-	storage: storage,
-	fileFilter: therapySessionFileFilter,
-	limits: {
-		fileSize: 50 * 1024 * 1024, // 50MB limit per file
-		files: 10 // Maximum 10 files per upload (for multiple images)
-	}
-});
 
 // Middleware to check storage limit
 const checkStorageLimit = async (req, res, next) => {
@@ -158,7 +165,7 @@ const checkStorageLimit = async (req, res, next) => {
 };
 
 // Middleware to validate therapy session upload (flexible - images and/or videos)
-const validateTherapySessionUpload = async (req, res, next) => {
+const validateTherapyUpload = async (req, res, next) => {
 	try {
 		// Check if any files were uploaded
 		const hasImages = req.files?.images && req.files.images.length > 0;
@@ -228,10 +235,30 @@ const getStorageInfo = async (therapist) => {
 	}
 };
 
+// Configure multer for therapy session uploads
+const therapyUpload = multer({
+	storage: storage,
+	fileFilter: fileFilter,
+	limits: {
+		fileSize: 50 * 1024 * 1024, // 50MB limit per file
+		files: 10 // Maximum 10 files per upload (for multiple images)
+	}
+});
+
+const exerciseUpload = multer({
+	storage: exerciseStorage,
+	fileFilter: fileFilter,
+	limits: {
+		fileSize: 200 * 1024 * 1024, // 200MB per file (adjust if needed)
+		files: 50 // allow more files if required
+	}
+});
+
 module.exports = {
-	therapySessionUpload,
+	therapyUpload,
+	exerciseUpload,
 	checkStorageLimit,
-	validateTherapySessionUpload,
+	validateTherapyUpload,
 	getStorageInfo,
 	STORAGE_LIMITS,
 	formatBytes
