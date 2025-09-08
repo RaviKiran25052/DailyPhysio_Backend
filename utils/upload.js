@@ -249,7 +249,7 @@ const exerciseUpload = multer({
 	storage: exerciseStorage,
 	fileFilter: fileFilter,
 	limits: {
-		fileSize: 200 * 1024 * 1024, // 200MB per file (adjust if needed)
+		fileSize: 100 * 1024 * 1024, // 100MB per file (adjust if needed)
 		files: 50 // allow more files if required
 	}
 });
