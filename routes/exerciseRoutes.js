@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { protectAll3, checkPremiumAccess, protectUser } = require('../middleware/authMiddleware');
+const { protectAll3, checkPremiumAccess } = require('../middleware/authMiddleware');
+const { exerciseUpload } = require('../utils/upload');
 const multer = require('multer');
 
 const {
