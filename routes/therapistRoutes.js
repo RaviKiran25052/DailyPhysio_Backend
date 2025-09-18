@@ -5,7 +5,7 @@ const router = express.Router();
 const therapistController = require('../controllers/therapistController');
 const { protectTherapist } = require('../middleware/authMiddleware');
 const multer = require('multer');
-const { therapyUpload, checkStorageLimit, validatetherapyUpload } = require('../utils/upload');
+const { therapyUpload, checkStorageLimit, validateTherapyUpload } = require('../utils/upload');
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -44,7 +44,7 @@ router.route('/exercises')
 			{ name: 'video', maxCount: 1 }
 		]),
 		checkStorageLimit,
-		validatetherapyUpload,
+		validateTherapyUpload,
 		therapistController.createExercise
 	);
 
